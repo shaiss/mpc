@@ -55,6 +55,15 @@ impl AllowedImageHashesStorage for AllowedImageHashesFile {
     }
 }
 
+impl Drop for AllowedImageHashesFile {
+    fn drop(&mut self) {
+        let file_unlock_result = self.file_handle.unlock();
+        if let Err(file_unlock_error) = file_unlock_result {
+            error!("Failed to unlock file handle");
+        }
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum ExitError {
     #[error("The local image that is running is not in the set of allowed image hashes on the contract.")]
