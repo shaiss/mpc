@@ -1,10 +1,15 @@
+use fs2::FileExt;
 use itertools::Itertools;
 use mpc_contract::tee::proposal::{AllowedDockerImageHash, DockerImageHash};
-use std::{future::Future, io, panic, path::PathBuf};
+use std::{
+    fs::{File, OpenOptions},
+    future::Future,
+    io::{self, Write},
+    panic,
+    path::PathBuf,
+};
 use thiserror::Error;
 use tokio::{
-    fs::OpenOptions,
-    io::AsyncWriteExt,
     select,
     sync::{
         mpsc::{self, error::TrySendError},
@@ -19,43 +24,32 @@ use mockall::automock;
 
 #[cfg_attr(test, automock)]
 pub trait AllowedImageHashesStorage {
-    fn set(
-        &mut self,
-        latest_allowed_image_hash: &AllowedDockerImageHash,
-    ) -> impl Future<Output = Result<(), io::Error>> + Send;
+    fn set(&mut self, latest_allowed_image_hash: &AllowedDockerImageHash) -> Result<(), io::Error>;
 }
 
 pub struct AllowedImageHashesFile {
-    file_path: PathBuf,
+    file_handle: File,
 }
 
 impl AllowedImageHashesFile {
-    pub async fn new(file_path: PathBuf) -> Result<Self, io::Error> {
-        // Make sure the provided path exists.
-        let _file_handle = OpenOptions::new()
+    pub fn new(file_path: PathBuf) -> Result<Self, io::Error> {
+        let file_handle = OpenOptions::new()
             .write(true)
             .truncate(false)
-            .open(&file_path)
-            .await?;
+            .open(&file_path)?;
 
-        Ok(Self { file_path })
+        file_handle.try_lock_exclusive()?;
+
+        Ok(Self { file_handle })
     }
 }
 
 impl AllowedImageHashesStorage for AllowedImageHashesFile {
-    async fn set(
-        &mut self,
-        latest_allowed_image_hash: &AllowedDockerImageHash,
-    ) -> Result<(), io::Error> {
-        let mut file_handle = OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(&self.file_path)
-            .await?;
-
+    fn set(&mut self, latest_allowed_image_hash: &AllowedDockerImageHash) -> Result<(), io::Error> {
+        self.file_handle.set_len(0);
         let image_hash = latest_allowed_image_hash.image_hash.as_hex();
-        file_handle.write_all(image_hash.as_bytes()).await?;
-        file_handle.flush().await?;
+        self.file_handle.write_all(image_hash.as_bytes())?;
+        self.file_handle.flush()?;
 
         Ok(())
     }
