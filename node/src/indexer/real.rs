@@ -4,11 +4,13 @@ use super::stats::{indexer_logger, IndexerStats};
 use super::tx_sender::handle_txn_requests;
 use super::{IndexerAPI, IndexerState};
 use crate::config::{load_respond_config_file, IndexerConfig, RespondConfigFile};
+use crate::metrics::{MPC_INDEXER_MESSAGES_ON_STREAM, MPC_INDEXER_MESSAGES_STREAM_CAPACITY};
 use near_crypto::SecretKey;
 use near_sdk::AccountId;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use std::time::Instant;
+use tokio::sync::{mpsc, oneshot, watch, Mutex};
 
 /// Spawns a real indexer, returning a handle to the indexer, [`IndexerApi`].
 ///
@@ -20,11 +22,17 @@ pub fn spawn_real_indexer(
     my_near_account_id: AccountId,
     account_secret_key: SecretKey,
     indexer_exit_sender: oneshot::Sender<anyhow::Result<()>>,
+    sleep_time: watch::Sender<Instant>,
 ) -> IndexerAPI {
     let (chain_config_sender, chain_config_receiver) =
         tokio::sync::watch::channel::<ContractState>(ContractState::WaitingForSync);
     let (block_update_sender, block_update_receiver) = mpsc::unbounded_channel();
     let (chain_txn_sender, chain_txn_receiver) = mpsc::channel(10000);
+
+    // Create a new runtime. Suspect current runtime indexer is running on is blocked.
+    let wrapping_runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
 
     // TODO(#156): replace actix with tokio
     std::thread::spawn(move || {
@@ -45,7 +53,23 @@ pub fn spawn_real_indexer(
                     panic!("respond.yaml is provided but failed to parse: {err:?}");
                 }
             };
-            let stream = indexer.streamer();
+            let mut inner_stream = indexer.streamer();
+
+            let buffer_size = inner_stream.max_capacity();
+            let (wrapping_sender, stream) = mpsc::channel(buffer_size);
+
+            wrapping_runtime.spawn(async move {
+                while let Some(message) = inner_stream.recv().await {
+                    MPC_INDEXER_MESSAGES_ON_STREAM.inc();
+                    let stream_capacity = inner_stream.capacity();
+                    MPC_INDEXER_MESSAGES_STREAM_CAPACITY.set(stream_capacity as i64);
+                    let send_result = wrapping_sender.send(message).await;
+                    if send_result.is_err() {
+                        tracing::error!("FAILED TO SEND MESSAGE FROM NEAR CORE INDEXER");                        
+                    }
+                }
+            });
+
             let (view_client, client, tx_processor) = indexer.client_actors();
             let indexer_state = Arc::new(IndexerState::new(
                 view_client,
@@ -60,6 +84,7 @@ pub fn spawn_real_indexer(
                 indexer_state.clone(),
                 indexer_config.port_override,
                 chain_config_sender,
+                sleep_time
             ));
             actix::spawn(indexer_logger(Arc::clone(&stats), indexer_state.view_client.clone()));
             actix::spawn(handle_txn_requests(
