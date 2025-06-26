@@ -17,7 +17,7 @@ use crate::{
     web::start_web_server,
 };
 use anyhow::Context;
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use hex::FromHex;
 use near_crypto::SecretKey;
 use near_indexer_primitives::types::Finality;
@@ -31,28 +31,7 @@ use std::{
 use tokio::sync::{oneshot, watch};
 
 #[derive(Parser, Debug)]
-pub struct Cli {
-    #[clap(
-        long,
-        value_enum,
-        env("MPC_LOG_FORMAT"),
-        global = true,
-        default_value = "plain",
-        help = "Log format: plain or json"
-    )]
-    pub log_format: LogFormat,
-    #[clap(subcommand)]
-    pub command: CliCommand,
-}
-
-#[derive(Copy, Clone, Debug, ValueEnum)]
-pub enum LogFormat {
-    Plain,
-    Json,
-}
-
-#[derive(Parser, Debug)]
-pub enum CliCommand {
+pub enum Cli {
     Start(StartCmd),
     /// Generates/downloads required files for Near node to run
     Init(InitConfigArgs),
@@ -253,9 +232,9 @@ impl StartCmd {
 
 impl Cli {
     pub async fn run(self) -> anyhow::Result<()> {
-        match self.command {
-            CliCommand::Start(start) => start.run().await,
-            CliCommand::Init(config) => near_indexer::init_configs(
+        match self {
+            Cli::Start(start) => start.run().await,
+            Cli::Init(config) => near_indexer::init_configs(
                 &config.dir,
                 config.chain_id,
                 None,
@@ -274,9 +253,9 @@ impl Cli {
                 None,
                 None,
             ),
-            CliCommand::ImportKeyshare(cmd) => cmd.run().await,
-            CliCommand::ExportKeyshare(cmd) => cmd.run().await,
-            CliCommand::GenerateTestConfigs {
+            Cli::ImportKeyshare(cmd) => cmd.run().await,
+            Cli::ExportKeyshare(cmd) => cmd.run().await,
+            Cli::GenerateTestConfigs {
                 ref output_dir,
                 ref participants,
                 threshold,

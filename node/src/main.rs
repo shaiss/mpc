@@ -30,7 +30,6 @@ mod tracking;
 mod web;
 
 fn main() -> anyhow::Result<()> {
-    let cli = cli::Cli::parse();
-    init_logging(cli.log_format);
-    futures::executor::block_on(cli.run())
+    init_logging();
+    futures::executor::block_on(cli::Cli::parse().run())
 }
