@@ -207,7 +207,7 @@ def adjust_indexing_shard(near_node: LocalNode):
 
     with open(path, "r+") as f:
         config = json.load(f)
-        config["tracked_shards_config"] = "AllShards"
+        config['tracked_shards'] = [0]
         f.seek(0)
         json.dump(config, f, indent=2)
         f.truncate()
