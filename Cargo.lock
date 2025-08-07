@@ -4937,6 +4937,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "serde_json",
+ "serde_with",
 ]
 
 [[package]]
@@ -8818,6 +8819,7 @@ dependencies = [
  "hex",
  "indexmap 1.9.3",
  "indexmap 2.10.0",
+ "schemars 0.8.22",
  "schemars 0.9.0",
  "schemars 1.0.4",
  "serde",

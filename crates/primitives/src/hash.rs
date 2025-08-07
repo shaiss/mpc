@@ -2,12 +2,15 @@ use alloc::string::String;
 use borsh::{BorshDeserialize, BorshSerialize};
 use core::marker::PhantomData;
 use derive_more::{AsRef, Deref, Into};
+use serde_with::{Bytes, serde_as};
 
 #[cfg_attr(
     all(feature = "abi", not(target_arch = "wasm32")),
     derive(::schemars::JsonSchema),
-    derive(::borsh::BorshSchema)
+    derive(::borsh::BorshSchema),
+    schemars(transparent)
 )]
+#[serde_as]
 #[derive(
     Debug,
     Clone,
@@ -25,17 +28,22 @@ use derive_more::{AsRef, Deref, Into};
     Into,
 )]
 #[serde(transparent)]
-pub struct Hash32<T> {
+pub struct Hash<T, const N: usize> {
     #[deref]
     #[as_ref]
     #[into]
-    bytes: [u8; 32],
+    #[serde_as(as = "Bytes")]
+    #[cfg_attr(
+        all(feature = "abi", not(target_arch = "wasm32")),
+        schemars(with = "byte_schema_generator::ByteArray<N>")
+    )]
+    bytes: [u8; N],
     #[into(skip)]
     _marker: PhantomData<T>,
 }
 
-impl<T> From<[u8; 32]> for Hash32<T> {
-    fn from(bytes: [u8; 32]) -> Self {
+impl<T, const N: usize> From<[u8; N]> for Hash<T, N> {
+    fn from(bytes: [u8; N]) -> Self {
         Self {
             bytes,
             _marker: PhantomData,
@@ -43,9 +51,37 @@ impl<T> From<[u8; 32]> for Hash32<T> {
     }
 }
 
-impl<T> Hash32<T> {
+impl<T, const N: usize> Hash<T, N> {
     pub fn as_hex(&self) -> String {
         hex::encode(self.as_ref())
+    }
+}
+
+// Helper module to generate json schea
+#[cfg(all(feature = "abi", not(target_arch = "wasm32")))]
+pub(super) mod byte_schema_generator {
+    use schemars::{SchemaGenerator, schema::Schema};
+    pub struct ByteArray<const N: usize>;
+
+    #[cfg(all(feature = "abi", not(target_arch = "wasm32")))]
+    impl<const N: usize> schemars::JsonSchema for ByteArray<N> {
+        fn schema_name() -> String {
+            format!("ByteArray_{}", N)
+        }
+
+        fn json_schema(_generator: &mut SchemaGenerator) -> Schema {
+            use schemars::schema::*;
+            SchemaObject {
+                instance_type: Some(InstanceType::String.into()),
+                format: Some("byte".to_string()),
+                metadata: Some(Box::new(Metadata {
+                    description: Some(format!("A {}-byte array", N)),
+                    ..Default::default()
+                })),
+                ..Default::default()
+            }
+            .into()
+        }
     }
 }
 
@@ -86,12 +122,12 @@ pub struct Compose;
 /// Hash of an MPC Docker image running in the TEE environment. Used as a proposal for a new TEE
 /// code hash to add to the whitelist, together with the TEE quote (which includes the RTMR3
 /// measurement and more).
-pub type MpcDockerImageHash = Hash32<Image>;
+pub type MpcDockerImageHash = Hash<Image, 32>;
 
 /// Hash of the launcher's Docker Compose file used to run the MPC node in the TEE environment. It
 /// is computed from the launcher's Docker Compose template populated with the MPC node's Docker
 /// image hash.
-pub type LauncherDockerComposeHash = Hash32<Compose>;
+pub type LauncherDockerComposeHash = Hash<Compose, 32>;
 
 #[cfg(test)]
 mod tests {
@@ -100,7 +136,7 @@ mod tests {
     use rand::{RngCore, SeedableRng, rngs::StdRng};
 
     struct TestMarker;
-    type TestHash = Hash32<TestMarker>;
+    type TestHash = Hash<TestMarker, 32>;
 
     #[test]
     fn test_from_bytes_array() {
