@@ -169,7 +169,7 @@ mod tests {
     use super::*;
 
     fn dummy_code_hash(val: u8) -> MpcDockerImageHash {
-        MpcDockerImageHash::from([val; 32])
+        MpcDockerImageHash::from([val; 48])
     }
 
     #[test]

@@ -122,7 +122,7 @@ pub struct Compose;
 /// Hash of an MPC Docker image running in the TEE environment. Used as a proposal for a new TEE
 /// code hash to add to the whitelist, together with the TEE quote (which includes the RTMR3
 /// measurement and more).
-pub type MpcDockerImageHash = Hash<Image, 32>;
+pub type MpcDockerImageHash = Hash<Image, 48>;
 
 /// Hash of the launcher's Docker Compose file used to run the MPC node in the TEE environment. It
 /// is computed from the launcher's Docker Compose template populated with the MPC node's Docker
@@ -223,7 +223,7 @@ mod tests {
     fn test_type_aliases() {
         let bytes = [1u8; 32];
 
-        let image_hash = MpcDockerImageHash::from(bytes);
+        let image_hash = TestHash::from(bytes);
         let compose_hash = LauncherDockerComposeHash::from(bytes);
 
         assert_eq!(*image_hash, bytes);
@@ -236,7 +236,7 @@ mod tests {
         let bytes = [42u8; 32];
 
         // Ensure different marker types create different types
-        let image_hash = MpcDockerImageHash::from(bytes);
+        let image_hash = TestHash::from(bytes);
         let compose_hash = LauncherDockerComposeHash::from(bytes);
 
         // They should have the same data but be different types

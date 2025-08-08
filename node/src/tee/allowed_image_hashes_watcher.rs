@@ -207,7 +207,7 @@ mod tests {
 
     fn image_hash_1() -> AllowedDockerImageHash {
         AllowedDockerImageHash {
-            image_hash: MpcDockerImageHash::from([1; 32]),
+            image_hash: MpcDockerImageHash::from([1; 48]),
             docker_compose_hash: LauncherDockerComposeHash::from([1; 32]),
             added: 1,
         }
@@ -215,7 +215,7 @@ mod tests {
 
     fn image_hash_2() -> AllowedDockerImageHash {
         AllowedDockerImageHash {
-            image_hash: MpcDockerImageHash::from([2; 32]),
+            image_hash: MpcDockerImageHash::from([2; 48]),
             docker_compose_hash: LauncherDockerComposeHash::from([2; 32]),
             added: 2,
         }
@@ -223,7 +223,7 @@ mod tests {
 
     fn image_hash_3() -> AllowedDockerImageHash {
         AllowedDockerImageHash {
-            image_hash: MpcDockerImageHash::from([3; 32]),
+            image_hash: MpcDockerImageHash::from([3; 48]),
             docker_compose_hash: LauncherDockerComposeHash::from([3; 32]),
             added: 3,
         }
