@@ -54,10 +54,12 @@ impl<T, const N: usize> From<[u8; N]> for Hash<T, N> {
 }
 
 #[derive(Debug, Error)]
-pub enum HexToHashError {
+pub enum HexToHashError<const N: usize> {
     #[error("The provided string is not a valid hex.")]
     InvalidHex(#[from] FromHexError),
-    #[error("The provided hex is not 32 bytes. Got `{provided_length}` bytes instead.")]
+    #[error(
+        "Expected the provided hex to decode to `{N}` bytes. Got `{provided_length}` bytes instead."
+    )]
     InvalidLength { provided_length: usize },
 }
 
@@ -72,9 +74,9 @@ impl<T, const N: usize> Hash<T, N> {
     /// # Errors
     /// Returns [`HexToHashError::InvalidHex`] if the string contains non-hex characters.
     /// Returns [`HexToHashError::InvalidLength`] if the decoded bytes are not exactly 32 bytes.
-    pub fn try_from_hex(hex_hash: impl AsRef<[u8]>) -> Result<Self, HexToHashError> {
+    pub fn try_from_hex(hex_hash: impl AsRef<[u8]>) -> Result<Self, HexToHashError<N>> {
         let decoded_hex = hex::decode(hex_hash)?;
-        let bytes: [u8; 32] =
+        let bytes: [u8; N] =
             decoded_hex
                 .try_into()
                 .map_err(|err: Vec<u8>| HexToHashError::InvalidLength {
@@ -85,7 +87,7 @@ impl<T, const N: usize> Hash<T, N> {
     }
 }
 
-// Helper module to generate json schea
+/// Helper module to generate json schema [`super::Hash<T, N>`]
 #[cfg(all(feature = "abi", not(target_arch = "wasm32")))]
 pub(super) mod byte_schema_generator {
     use schemars::{SchemaGenerator, schema::Schema};
@@ -100,7 +102,7 @@ pub(super) mod byte_schema_generator {
         fn json_schema(_generator: &mut SchemaGenerator) -> Schema {
             use schemars::schema::*;
             SchemaObject {
-                instance_type: Some(InstanceType::String.into()),
+                instance_type: Some(InstanceType::Array.into()),
                 format: Some("byte".to_string()),
                 metadata: Some(Box::new(Metadata {
                     description: Some(format!("A {}-byte array", N)),
