@@ -45,6 +45,9 @@ impl Collateral {
             qe_identity_issuer_chain: get_str(&v, "qe_identity_issuer_chain")?,
             qe_identity: get_str(&v, "qe_identity")?,
             qe_identity_signature: get_hex(&v, "qe_identity_signature")?,
+            pck_crl_issuer_chain: todo!(),
+            root_ca_crl: todo!(),
+            pck_crl: todo!(),
         };
         Ok(Self(quote_collateral))
     }
