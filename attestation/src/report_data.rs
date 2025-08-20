@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use derive_more::Constructor;
-use near_crypto::PublicKey;
+use near_sdk::PublicKey;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_384};
 
@@ -94,7 +94,7 @@ impl ReportDataV1 {
     /// Generates SHA3-384 hash of TLS public key only.
     fn public_keys_hash(&self) -> [u8; Self::PUBLIC_KEYS_HASH_SIZE] {
         let mut hasher = Sha3_384::new();
-        hasher.update(self.tls_public_key.key_data());
+        hasher.update(self.tls_public_key.as_bytes());
         hasher.finalize().into()
     }
 }
@@ -124,7 +124,7 @@ mod tests {
     use super::*;
     use crate::{quote::Quote, report_data::ReportData};
     use alloc::vec::Vec;
-    use near_crypto::{KeyType, SecretKey};
+    use near_sdk::CurveType;
 
     #[test]
     fn test_from_str_valid() {
@@ -138,13 +138,13 @@ mod tests {
             include_str!("../tests/assets/near_p2p_public_key.pub")
                 .parse()
                 .unwrap();
+
         let report_data = ReportData::V1(ReportDataV1::new(near_p2p_public_key));
         assert_eq!(report_data.to_bytes(), td_report.report_data,);
     }
 
     fn create_test_key() -> PublicKey {
-        let tls_secret = SecretKey::from_seed(KeyType::ED25519, "test_tls_seed");
-        tls_secret.public_key()
+        PublicKey::from_parts(CurveType::ED25519, [1; 32].to_vec()).unwrap()
     }
 
     #[test]
@@ -217,7 +217,7 @@ mod tests {
         assert_ne!(hash_bytes, &[0u8; ReportDataV1::PUBLIC_KEYS_HASH_SIZE]);
 
         let mut hasher = Sha3_384::new();
-        hasher.update(tls_key.key_data());
+        hasher.update(tls_key.as_bytes());
         let expected: [u8; ReportDataV1::PUBLIC_KEYS_HASH_SIZE] = hasher.finalize().into();
 
         assert_eq!(hash_bytes, &expected);
