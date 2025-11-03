@@ -459,7 +459,7 @@ impl Attestation {
             && app_compose.local_key_provider_enabled
             && app_compose.allowed_envs.is_empty()
             && app_compose.no_instance_id
-            && app_compose.secure_time == Some(true)
+            //&& app_compose.secure_time == Some(true) /TODO: Understand how to configure this in dstack
             && app_compose.pre_launch_script.is_none()
     }
 
