@@ -98,12 +98,17 @@ class NearAccount:
         self._next_signer_key_id = (id + 1) % len(self._pytest_signer_keys)
         return id
 
-    def get_key_and_nonce(self) -> tuple[Key, int]:
+    def get_key_and_nonce(
+        self, retries: int = 10, delay: float = 0.05
+    ) -> tuple[Key, int]:
         id = self._get_next_signer_key_id()
         key = self._pytest_signer_keys[id]
-        nonce = self.near_node.get_nonce_for_pk(key.account_id, key.pk)
-        assert nonce is not None
-        return (key, nonce)
+        for attempt in range(1, retries + 1):
+            nonce = self.near_node.get_nonce_for_pk(key.account_id, key.pk)
+            if nonce is not None:
+                return (key, nonce)
+            time.sleep(delay)
+        raise AssertionError("Failed to get nonce aftr {} retries".format(retries))
 
     def sign_tx(
         self,
