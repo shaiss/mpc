@@ -1,6 +1,6 @@
 use super::handler::listen_blocks;
 use super::migrations::{monitor_migrations, ContractMigrationInfo};
-use super::participants::monitor_contract_state;
+use super::participants::{monitor_contract_state, ContractState};
 use super::stats::indexer_logger;
 use super::{IndexerAPI, IndexerState};
 #[cfg(feature = "network-hardship-simulation")]
@@ -10,6 +10,7 @@ use crate::indexer::tee::{
     monitor_allowed_docker_images, monitor_allowed_launcher_compose_hashes, monitor_tee_accounts,
 };
 use crate::indexer::tx_sender::{TransactionProcessorHandle, TransactionSender};
+use crate::migration_service::types::MigrationInfo;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use mpc_contract::state::ProtocolContractState;
 use near_account_id::AccountId;
@@ -19,6 +20,42 @@ use std::sync::Arc;
 #[cfg(feature = "network-hardship-simulation")]
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, watch, Mutex};
+
+mod mock_tx_sender {
+
+    use tokio::sync::mpsc;
+
+    use crate::indexer::{
+        tx_sender::{TransactionProcessorError, TransactionSender, TransactionStatus},
+        types::ChainSendTransactionRequest,
+    };
+
+    #[derive(Debug, Clone)]
+    pub struct MockTransactionSender {
+        pub transaction_sender: mpsc::Sender<ChainSendTransactionRequest>,
+    }
+
+    impl TransactionSender for MockTransactionSender {
+        async fn send(
+            &self,
+            transaction: ChainSendTransactionRequest,
+        ) -> Result<(), TransactionProcessorError> {
+            self.transaction_sender
+                .send(transaction)
+                .await
+                .map_err(|_| TransactionProcessorError::ProcessorIsClosed)
+        }
+
+        async fn send_and_wait(
+            &self,
+            _transaction: ChainSendTransactionRequest,
+        ) -> Result<TransactionStatus, TransactionProcessorError> {
+            unimplemented!()
+        }
+    }
+}
+
+use mock_tx_sender::MockTransactionSender;
 
 #[cfg(feature = "network-hardship-simulation")]
 pub async fn check_block_processing(process_blocks_sender: watch::Sender<bool>, home_dir: PathBuf) {
@@ -38,6 +75,123 @@ pub async fn check_block_processing(process_blocks_sender: watch::Sender<bool>, 
             tracing::info!("channel closed");
             return;
         }
+    }
+}
+
+pub fn spawn_reduced_indexer(
+    home_dir: PathBuf,
+    mpc_indexer_config: IndexerConfig,
+    _my_near_account_id: AccountId,
+    _account_secret_key: SigningKey,
+    _respond_config: RespondConfig,
+    indexer_exit_sender: oneshot::Sender<anyhow::Result<()>>,
+    _protocol_state_sender: watch::Sender<ProtocolContractState>,
+    _migration_state_sender: watch::Sender<(u64, ContractMigrationInfo)>,
+    _tls_public_key: VerifyingKey,
+) -> IndexerAPI<impl TransactionSender> {
+    let (block_update_sender, block_update_receiver) = mpsc::unbounded_channel();
+    let (_allowed_docker_images_sender, allowed_docker_images_receiver) = watch::channel(vec![]);
+    let (_allowed_launcher_compose_sender, allowed_launcher_compose_receiver) =
+        watch::channel(vec![]);
+    let (_tee_accounts_sender, tee_accounts_receiver) = watch::channel(vec![]);
+
+    let (txn_sender_sender, txn_sender_receiver) = oneshot::channel();
+
+    std::thread::spawn(move || {
+        // TODO(#1515); limit number of worker threads? Assume not as we don't want the node to fall behind.
+        let indexer_tokio_runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("tokio runtime must be constructable on startup");
+
+        // TODO(#1515): Clean this entire function up eventually.
+        // We have this indirection of using a oneshot for sending the indexer state,
+        // as we can't block the main thread for waiting on the `txn_sender`.
+        // Thus we instead initialize a `txn_sender`, which runs as a spawned task, to await on the indexer state being ready.
+        indexer_tokio_runtime.block_on(async {
+            let near_indexer_config = mpc_indexer_config.to_near_indexer_config(home_dir.clone());
+
+            let near_config = near_indexer_config
+                .load_near_config()
+                .expect("near config is present");
+
+            let near_node = Indexer::start_near_node(&near_indexer_config, near_config.clone())
+                .await
+                .expect("near node has started");
+
+            let indexer = Indexer::from_near_node(near_indexer_config, near_config, &near_node);
+
+            let stream = indexer.streamer();
+
+            let indexer_state = Arc::new(IndexerState::new(
+                near_node.view_client,
+                near_node.client,
+                near_node.rpc_handler,
+                mpc_indexer_config.mpc_contract_id.clone(),
+            ));
+
+            let transaction_sender = mpsc::channel(100).0;
+            let txn_sender = MockTransactionSender { transaction_sender };
+
+            if txn_sender_sender.send(txn_sender).is_err() {
+                tracing::error!("Failed to send txn_sender back to main thread.")
+            };
+
+            let indexer_state_clone = indexer_state.clone();
+            tokio::spawn(async move {
+                loop {
+                    indexer_state_clone.client.wait_for_full_sync().await;
+                }
+            });
+
+            let indexer_state_clone = indexer_state.clone();
+            tokio::spawn(async move {
+                loop {
+                    indexer_state_clone.client.wait_for_full_sync().await;
+                }
+            });
+
+            #[cfg(feature = "network-hardship-simulation")]
+            unimplemented!();
+
+            // below function runs indefinitely and only returns in case of an error.
+            #[cfg(feature = "network-hardship-simulation")]
+            unimplemented!();
+
+            let indexer_result = listen_blocks(
+                stream,
+                mpc_indexer_config.concurrency,
+                Arc::clone(&indexer_state.stats),
+                mpc_indexer_config.mpc_contract_id,
+                block_update_sender,
+            )
+            .await;
+
+            if indexer_exit_sender.send(indexer_result).is_err() {
+                tracing::error!("Indexer thread could not send result back to main driver.")
+            };
+        });
+    });
+
+    let txn_sender = txn_sender_receiver
+        .blocking_recv()
+        .expect("txn_sender is returned from the `block_on` expression above.");
+
+    let contract_state_receiver = watch::channel(ContractState::Invalid).1;
+    let my_migration_info_receiver = watch::channel(MigrationInfo {
+        backup_service_info: None,
+        active_migration: false,
+    })
+    .1;
+
+    IndexerAPI {
+        contract_state_receiver,
+        block_update_receiver: Arc::new(Mutex::new(block_update_receiver)),
+        txn_sender,
+        allowed_docker_images_receiver,
+        allowed_launcher_compose_receiver,
+        attested_nodes_receiver: tee_accounts_receiver,
+        my_migration_info_receiver,
     }
 }
 

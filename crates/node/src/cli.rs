@@ -6,7 +6,11 @@ use crate::{
     },
     coordinator::Coordinator,
     db::SecretDB,
-    indexer::{real::spawn_real_indexer, tx_sender::TransactionSender, IndexerAPI},
+    indexer::{
+        real::{spawn_real_indexer, spawn_reduced_indexer},
+        tx_sender::TransactionSender,
+        IndexerAPI,
+    },
     keyshare::{
         compat::legacy_ecdsa_key_from_keyshares,
         local::LocalPermanentKeyStorageBackend,
@@ -72,6 +76,8 @@ pub enum LogFormat {
 
 #[derive(Subcommand, Debug)]
 pub enum CliCommand {
+    /// For debugging memory leak
+    OnlySync(OnlySyncCmd),
     Start(StartCmd),
     /// Generates/downloads required files for Near node to run
     Init(InitConfigArgs),
@@ -154,6 +160,12 @@ pub struct StartCmd {
     pub backup_encryption_key_hex: Option<String>,
 }
 
+#[derive(Args, Debug)]
+pub struct OnlySyncCmd {
+    #[arg(long, env("MPC_HOME_DIR"))]
+    pub home_dir: String,
+}
+
 #[derive(Subcommand, Debug, Clone)]
 pub enum TeeAuthorityConfig {
     Local,
@@ -223,6 +235,42 @@ pub struct ExportKeyshareCmd {
     /// Hex-encoded 16 byte AES key for local storage encryption
     #[arg(help = "Hex-encoded 16 byte AES key for local storage encryption")]
     pub local_encryption_key_hex: String,
+}
+
+impl OnlySyncCmd {
+    async fn run(self) -> anyhow::Result<()> {
+        let home_dir = PathBuf::from(self.home_dir.clone());
+        let config = load_config_file(&home_dir)?;
+        let persistent_secrets = PersistentSecrets::generate_or_get_existing(
+            &home_dir,
+            config.number_of_responder_keys,
+        )?;
+        let respond_config = RespondConfig::from_parts(&config, &persistent_secrets);
+        let (indexer_exit_sender, _indexer_exit_receiver) = oneshot::channel();
+        let (protocol_state_sender, _protocol_state_receiver) =
+            watch::channel(ProtocolContractState::NotInitialized);
+
+        let (migration_state_sender, _migration_state_receiver) =
+            watch::channel((0, BTreeMap::new()));
+        let tls_public_key = &persistent_secrets.p2p_private_key.verifying_key();
+
+        let _indexer_api = spawn_reduced_indexer(
+            home_dir.clone(),
+            config.indexer.clone(),
+            config.my_near_account_id.clone(),
+            persistent_secrets.near_signer_key.clone(),
+            respond_config,
+            indexer_exit_sender,
+            protocol_state_sender,
+            migration_state_sender,
+            *tls_public_key,
+        );
+
+        loop {
+            tracing::info!("sleeping for 30 secs");
+            std::thread::sleep(std::time::Duration::from_secs(30));
+        }
+    }
 }
 
 impl StartCmd {
@@ -517,6 +565,7 @@ impl StartCmd {
 impl Cli {
     pub async fn run(self) -> anyhow::Result<()> {
         match self.command {
+            CliCommand::OnlySync(onlysync) => onlysync.run().await,
             CliCommand::Start(start) => start.run().await,
             CliCommand::Init(config) => {
                 let (download_config_type, download_config_url) = if config.download_config {
