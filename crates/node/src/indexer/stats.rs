@@ -1,6 +1,7 @@
+use near_indexer_primitives::types;
+use near_o11y::WithSpanContextExt;
 use std::sync::Arc;
-
-use crate::indexer::IndexerState;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub(crate) struct IndexerStats {
@@ -19,13 +20,16 @@ impl IndexerStats {
     }
 }
 
-pub(crate) async fn indexer_logger(indexer_state: Arc<IndexerState>) {
+pub(crate) async fn indexer_logger(
+    stats: Arc<Mutex<IndexerStats>>,
+    view_client: actix::Addr<near_client::ViewClientActor>,
+) {
     let interval_secs = 10;
     let mut prev_blocks_processed_count: u64 = 0;
 
     loop {
         tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
-        let stats_lock = indexer_state.stats.lock().await;
+        let stats_lock = stats.lock().await;
         let stats_copy = stats_lock.clone();
         drop(stats_lock);
 
@@ -34,12 +38,7 @@ pub(crate) async fn indexer_logger(indexer_state: Arc<IndexerState>) {
             / (interval_secs as f64);
 
         let time_to_catch_the_tip_duration = if block_processing_speed > 0.0 {
-            if let Ok(block_height) = indexer_state
-                .view_client
-                .latest_final_block()
-                .await
-                .map(|block| block.header.height)
-            {
+            if let Ok(block_height) = fetch_latest_block(&view_client).await {
                 let blocks_behind = if block_height > stats_copy.last_processed_block_height {
                     block_height - stats_copy.last_processed_block_height
                 } else {
@@ -74,4 +73,16 @@ pub(crate) async fn indexer_logger(indexer_state: Arc<IndexerState>) {
         );
         prev_blocks_processed_count = stats_copy.blocks_processed_count;
     }
+}
+
+async fn fetch_latest_block(
+    client: &actix::Addr<near_client::ViewClientActor>,
+) -> anyhow::Result<u64> {
+    let block = client
+        .send(
+            near_client::GetBlock(types::BlockReference::Finality(types::Finality::Final))
+                .with_span_context(),
+        )
+        .await??;
+    Ok(block.header.height)
 }

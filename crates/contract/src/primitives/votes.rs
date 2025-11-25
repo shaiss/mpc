@@ -57,7 +57,6 @@ mod tests {
         test_utils::{gen_participant, gen_threshold_params},
     };
     use near_sdk::{test_utils::VMContextBuilder, testing_env};
-    use utilities::AccountIdExtV2;
 
     #[test]
     fn test_voting_and_removal() {
@@ -65,7 +64,7 @@ mod tests {
         let p0 = gen_participant(0);
         participants.insert(p0.0.clone(), p0.1).expect("error");
         let mut ctx = VMContextBuilder::new();
-        ctx.signer_account_id(p0.0.as_v1_account_id());
+        ctx.signer_account_id(p0.0);
         testing_env!(ctx.build());
         let participant =
             AuthenticatedAccountId::new(&participants).expect("expected authentication");
@@ -81,7 +80,7 @@ mod tests {
         // new participant
         let p1 = gen_participant(1);
         participants.insert(p1.0.clone(), p1.1).expect("error");
-        ctx.signer_account_id(p1.0.as_v1_account_id());
+        ctx.signer_account_id(p1.0);
         testing_env!(ctx.build());
         let participant =
             AuthenticatedAccountId::new(&participants).expect("expected authentication");

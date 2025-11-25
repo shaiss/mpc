@@ -1,7 +1,6 @@
 use super::participants::{ParticipantId, ParticipantInfo, Participants};
 use crate::errors::{Error, InvalidCandidateSet, InvalidThreshold};
-use near_account_id::AccountId;
-use near_sdk::near;
+use near_sdk::{near, AccountId};
 use std::collections::BTreeMap;
 
 /// Minimum absolute threshold required.

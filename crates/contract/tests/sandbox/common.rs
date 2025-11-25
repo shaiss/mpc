@@ -36,10 +36,12 @@ use mpc_contract::{
 use mpc_primitives::hash::MpcDockerImageHash;
 use near_sdk::{log, Gas};
 
-use near_account_id::AccountId;
 use near_workspaces::{
-    network::Sandbox, operations::TransactionStatus, result::ExecutionFinalResult,
-    types::NearToken, Account, Contract, Worker,
+    network::Sandbox,
+    operations::TransactionStatus,
+    result::ExecutionFinalResult,
+    types::{AccountId, NearToken},
+    Account, Contract, Worker,
 };
 use rand::Rng;
 use rand::{distributions::Alphanumeric, rngs::OsRng};
@@ -65,7 +67,6 @@ use threshold_signatures::{
     frost_secp256k1::{self, Secp256K1Group},
 };
 pub const PARTICIPANT_LEN: usize = 10;
-use utilities::AccountIdExtV1;
 
 const CURRENT_CONTRACT_PACKAGE_NAME: &str = "mpc-contract";
 const DUMMY_MIGRATION_CONTRACT_PACKAGE_NAME: &str = "test-migration-contract";
@@ -82,7 +83,7 @@ pub const GAS_FOR_VOTE_RESHARED: Gas = Gas::from_tgas(22);
 /// not be getting that big.
 ///
 /// TODO(#771): Reduce this to the minimal value possible after #770 is resolved
-pub const CURRENT_CONTRACT_DEPLOY_DEPOSIT: NearToken = NearToken::from_millinear(13000);
+pub const CURRENT_CONTRACT_DEPLOY_DEPOSIT: NearToken = NearToken::from_millinear(11679);
 
 pub fn candidates(names: Option<Vec<AccountId>>) -> Participants {
     let mut participants: Participants = Participants::new();
@@ -115,9 +116,7 @@ pub async fn gen_accounts(worker: &Worker<Sandbox>, amount: usize) -> (Vec<Accou
         log!("created account");
         accounts.push(account);
     }
-    let candidates = candidates(Some(
-        accounts.iter().map(|a| a.id().as_v2_account_id()).collect(),
-    ));
+    let candidates = candidates(Some(accounts.iter().map(|a| a.id().clone()).collect()));
     (accounts, candidates)
 }
 
@@ -726,7 +725,7 @@ pub async fn derive_confidential_key_and_validate(
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
     if let Some((respond_req, respond_resp)) = respond {
-        assert!(account.id().as_v2_account_id() == respond_req.app_id);
+        assert!(account.id() == &respond_req.app_id);
         let respond = attested_account
             .call(contract.id(), "respond_ckd")
             .args_json(serde_json::json!({
@@ -935,11 +934,7 @@ pub async fn submit_tee_attestations(
 ) -> anyhow::Result<()> {
     env_accounts.sort_by(|left, right| left.id().cmp(right.id()));
     for (account, node_id) in env_accounts.iter().zip(node_ids) {
-        assert_eq!(
-            *account.id().as_v2_account_id(),
-            node_id.account_id,
-            "AccountId mismatch"
-        );
+        assert_eq!(*account.id(), node_id.account_id, "AccountId mismatch");
         let attestation = Attestation::Mock(MockAttestation::Valid); // todo #1109, add TLS key.
         let result = submit_participant_info(
             account,
@@ -1166,7 +1161,7 @@ pub async fn make_and_submit_requests(
     ];
 
     let alice = worker.dev_create_account().await.unwrap();
-    let alice_id = alice.id().as_v2_account_id();
+    let predecessor_id = alice.id();
 
     for (domain, shared_secret_key) in domains.iter().zip(shared_secret_keys.iter()) {
         match domain.scheme {
@@ -1175,7 +1170,7 @@ pub async fn make_and_submit_requests(
                     let (payload, signature_request, signature_response) =
                         create_message_payload_and_response(
                             domain.id,
-                            &alice_id,
+                            predecessor_id,
                             message,
                             path,
                             shared_secret_key,
@@ -1206,7 +1201,7 @@ pub async fn make_and_submit_requests(
                         unreachable!();
                     };
                     let (ckd_request, ckd_response) = create_response_ckd(
-                        &alice.id().as_v2_account_id(),
+                        alice.id(),
                         app_public_key.clone(),
                         &domain.id,
                         &sk.private_share.to_scalar(),

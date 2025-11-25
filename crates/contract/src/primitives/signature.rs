@@ -2,8 +2,7 @@ use crate::crypto_shared;
 use crate::errors::{Error, InvalidParameters};
 use crate::DomainId;
 use crypto_shared::derive_tweak;
-use near_account_id::AccountId;
-use near_sdk::{near, CryptoHash};
+use near_sdk::{near, AccountId, CryptoHash};
 use std::fmt::Debug;
 
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]

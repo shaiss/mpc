@@ -8,8 +8,7 @@ use crate::primitives::{
     thresholds::ThresholdParameters,
     votes::ThresholdParametersVotes,
 };
-use near_account_id::AccountId;
-use near_sdk::near;
+use near_sdk::{near, AccountId};
 use std::collections::{BTreeSet, HashSet};
 
 /// In this state, the contract is ready to process signature requests.

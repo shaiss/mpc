@@ -2,7 +2,6 @@ use anyhow::Result;
 use contract_interface::types::{Attestation, MockAttestation};
 use near_workspaces::{Account, Contract};
 use serde_json::json;
-use utilities::AccountIdExtV1;
 
 use crate::sandbox::common::{
     assert_running_return_participants, assert_running_return_threshold,
@@ -59,7 +58,7 @@ async fn test_tee_cleanup_after_full_resharing_flow() -> Result<()> {
 
     // add a new TEE quote for an existing participant, but with a different signer key
     let new_uid = NodeId {
-        account_id: env_accounts[0].id().as_v2_account_id(),
+        account_id: env_accounts[0].id().clone(),
         tls_public_key: bogus_ed25519_near_public_key(),
         account_public_key: Some(bogus_ed25519_near_public_key()),
     };
@@ -168,7 +167,7 @@ async fn do_resharing(
                     .resharing_key
                     .proposed_parameters()
                     .participants()
-                    .id(&a.id().as_v2_account_id())
+                    .id(a.id())
                     .unwrap()
             })
             .unwrap();

@@ -7,8 +7,7 @@ use crate::primitives::key_state::{
     AuthenticatedAccountId, EpochId, KeyEventId, KeyForDomain, Keyset,
 };
 use crate::primitives::thresholds::ThresholdParameters;
-use near_account_id::AccountId;
-use near_sdk::near;
+use near_sdk::{near, AccountId};
 
 /// In this state, we reshare the key of every domain onto a new set of participants and threshold.
 /// Similar to key generation, we reshare the key of one domain at a time; when we finish resharing
@@ -201,7 +200,7 @@ pub mod tests {
         },
         state::test_utils::gen_resharing_state,
     };
-    use near_account_id::AccountId;
+    use near_sdk::AccountId;
     use std::collections::BTreeSet;
 
     fn test_resharing_contract_state_for(num_domains: usize) {

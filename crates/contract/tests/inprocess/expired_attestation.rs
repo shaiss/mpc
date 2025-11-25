@@ -15,10 +15,8 @@ use mpc_contract::{
 };
 
 use assert_matches::assert_matches;
-use near_account_id::AccountId;
-use near_sdk::{test_utils::VMContextBuilder, testing_env, NearToken, VMContext};
+use near_sdk::{test_utils::VMContextBuilder, testing_env, AccountId, NearToken, VMContext};
 use std::time::Duration;
-use utilities::AccountIdExtV2;
 
 use crate::sandbox::common::IntoInterfaceType;
 
@@ -86,8 +84,8 @@ impl TestSetup {
     fn with_env(&mut self, account_id: &AccountId, timestamp: u64) {
         testing_env!(VMContextBuilder::new()
             .block_timestamp(timestamp)
-            .signer_account_id(account_id.clone().as_v1_account_id())
-            .predecessor_account_id(account_id.clone().as_v1_account_id())
+            .signer_account_id(account_id.clone())
+            .predecessor_account_id(account_id.clone())
             .build());
     }
 
@@ -123,8 +121,8 @@ impl TestSetup {
 
 fn create_context_for_participant(account_id: &AccountId) -> VMContext {
     VMContextBuilder::new()
-        .signer_account_id(account_id.clone().as_v1_account_id())
-        .predecessor_account_id(account_id.clone().as_v1_account_id())
+        .signer_account_id(account_id.clone())
+        .predecessor_account_id(account_id.clone())
         .block_timestamp(near_sdk::env::block_timestamp())
         .build()
 }

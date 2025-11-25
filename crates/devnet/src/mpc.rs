@@ -29,19 +29,17 @@ use mpc_contract::{
     state::ProtocolContractState,
     utils::protocol_state_to_string,
 };
-use near_account_id::AccountId;
 use near_jsonrpc_client::errors::{JsonRpcError, JsonRpcServerError};
 use near_jsonrpc_client::methods;
 use near_jsonrpc_client::methods::query::RpcQueryError;
 use near_jsonrpc_primitives::types::query::QueryResponseKind;
 use near_primitives::types::{BlockReference, Finality, FunctionArgs};
 use near_primitives::views::QueryRequest;
-use near_sdk::{borsh, CurveType};
+use near_sdk::{borsh, AccountId, CurveType};
 use node_types::http_server::StaticWebData;
 use reqwest::Client;
 use serde::Serialize;
 use std::sync::Arc;
-use utilities::AccountIdExtV2;
 
 impl ListMpcCmd {
     pub async fn run(&self, config: ParsedConfig) {
@@ -873,7 +871,7 @@ pub async fn read_contract_state(
     let request = methods::query::RpcQueryRequest {
         block_reference: BlockReference::Finality(Finality::Final),
         request: QueryRequest::CallFunction {
-            account_id: contract.as_v1_account_id(),
+            account_id: contract.clone(),
             method_name: "state".to_string(),
             args: FunctionArgs::from(b"{}".to_vec()),
         },
