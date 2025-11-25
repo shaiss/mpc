@@ -241,30 +241,8 @@ impl OnlySyncCmd {
     async fn run(self) -> anyhow::Result<()> {
         let home_dir = PathBuf::from(self.home_dir.clone());
         let config = load_config_file(&home_dir)?;
-        let persistent_secrets = PersistentSecrets::generate_or_get_existing(
-            &home_dir,
-            config.number_of_responder_keys,
-        )?;
-        let respond_config = RespondConfig::from_parts(&config, &persistent_secrets);
-        let (indexer_exit_sender, _indexer_exit_receiver) = oneshot::channel();
-        let (protocol_state_sender, _protocol_state_receiver) =
-            watch::channel(ProtocolContractState::NotInitialized);
 
-        let (migration_state_sender, _migration_state_receiver) =
-            watch::channel((0, BTreeMap::new()));
-        let tls_public_key = &persistent_secrets.p2p_private_key.verifying_key();
-
-        let _indexer_api = spawn_reduced_indexer(
-            home_dir.clone(),
-            config.indexer.clone(),
-            config.my_near_account_id.clone(),
-            persistent_secrets.near_signer_key.clone(),
-            respond_config,
-            indexer_exit_sender,
-            protocol_state_sender,
-            migration_state_sender,
-            *tls_public_key,
-        );
+        spawn_reduced_indexer(home_dir.clone(), config.indexer.clone());
 
         loop {
             tracing::info!("sleeping for 30 secs");
