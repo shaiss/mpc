@@ -184,7 +184,7 @@ def sign_add_access_keys_tx(
 def start_neard_cluster_with_cleanup(
     num_validators: int,
     num_mpc_nodes: int,
-) -> Tuple[List[LocalNode], List[LocalNode]]:
+) -> tuple[list[LocalNode], list[LocalNode]]:
     rpc_polling_config = {
         "rpc": {
             "polling_config": {
@@ -197,8 +197,8 @@ def start_neard_cluster_with_cleanup(
     client_config_changes = {i: rpc_polling_config for i in range(num_validators)}
 
     # the config is set to local, so we expect local nodes.
-    nodes: typing.List[LocalNode] = cast(
-        List[LocalNode],
+    nodes: list[LocalNode] = cast(
+        list[LocalNode],
         start_cluster(
             num_validators,
             num_mpc_nodes,
@@ -236,6 +236,44 @@ class Candidate:
         self.backup_key = backup_key
 
 
+def config_participant(
+    near_account,
+    p2p_public_key: bytes,
+    my_addr,
+    my_port,
+    secrets_file_path,
+    idx,
+) -> Candidate:
+    # near_account = participant["near_account_id"]
+    # p2p_public_key = participant[
+    #    "p2p_public_key"
+    # ]  # note: this is not really how it is done in production... (c.f. above)
+    p2p_public_key_near_sdk_representation = serialize_key(p2p_public_key)
+
+    # my_addr = participant["address"]
+    # my_port = participant["port"]
+
+    secrets_file_path = os.path.join(dot_near, str(idx), SECRETS_JSON)
+    with open(secrets_file_path) as file:
+        participant_secrets = json.load(file)
+    signer_key = deserialize_key(
+        near_account,
+        participant_secrets["near_signer_key"],
+    )
+    responder_keys = []
+    for key in participant_secrets["near_responder_keys"]:
+        responder_keys.append(deserialize_key(responder_account_id, key))
+
+    backup_key = os.urandom(32)
+    return Candidate(
+        signer_key=signer_key,
+        responder_keys=responder_keys,
+        p2p_public_key=p2p_public_key_near_sdk_representation,
+        url=f"http://{my_addr}:{my_port}",
+        backup_key=backup_key,
+    )
+
+
 def generate_mpc_configs(
     num_mpc_nodes: int,
     num_respond_aks: int,
@@ -263,7 +301,7 @@ def generate_mpc_configs(
         ",".join(responders),
         "--threshold",
         str(num_mpc_nodes),
-        "--desired-responder-keys-per-participant",
+        "--desired-responder-keys-per-participant",  # todo: this is no longer relevant really... (c.f. below)
         str(num_respond_aks),
     )
     if presignatures_to_buffer:
@@ -285,7 +323,7 @@ def generate_mpc_configs(
         near_account = participant["near_account_id"]
         p2p_public_key = participant[
             "p2p_public_key"
-        ]  # note: this is not really how it is done in production...
+        ]  # note: this is not really how it is done in production... (c.f. above)
         p2p_public_key_near_sdk_representation = serialize_key(p2p_public_key)
 
         my_addr = participant["address"]

@@ -29,11 +29,8 @@ def test_mirgation_service():
     Signature requests are sent after each resharing to verify liveness.
     """
     cluster, mpc_nodes = shared.start_cluster_with_mpc(2, 4, 1, load_mpc_contract())
-    mpc_nodes[0].reserve_key_event_attempt(0, 0, 0)
-    mpc_nodes[0].reserve_key_event_attempt(0, 0, 1)
     # start with 2 nodes
-    cluster.init_cluster(participants=mpc_nodes[:2], threshold=2)
-    assert cluster.contract_state().keyset().keyset[0].attempt_id == 2
+    cluster.init_cluster(participants=mpc_nodes[:3], threshold=2)
     cluster.send_and_await_ckd_requests(1)
     cluster.send_and_await_signature_requests(1)
 

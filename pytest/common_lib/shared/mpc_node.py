@@ -1,4 +1,5 @@
 from dataclasses import asdict
+import enum
 import pathlib
 import sys
 import time
@@ -6,6 +7,7 @@ from typing import cast
 
 from key import Key
 from ruamel.yaml import YAML
+
 
 from common_lib.constants import LISTEN_BLOCKS_FILE, MPC_BINARY_PATH
 from common_lib.contracts import ContractMethod
@@ -33,7 +35,7 @@ class MpcNode(NearAccount):
     Mpc Node has its respective account on NEAR Blockchain.
     """
 
-    class NodeStatus:
+    class NodeStatus(enum.IntEnum):
         # not a participant, neither a candidate
         IDLE = 1
         # a participant in the current epoch and also in the next epoch
