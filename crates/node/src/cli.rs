@@ -99,6 +99,28 @@ pub enum CliCommand {
         #[arg(long, default_value = "1")]
         desired_responder_keys_per_participant: usize,
     },
+    /// Generates a set of test configurations suitable for running MPC in
+    /// an integration test.
+    /// It extends the participants list by one. The first and last participant of the returned
+    /// config share the same `AccountId`s
+    GenerateMigrationTestConfigs {
+        #[arg(long)]
+        output_dir: String,
+        #[arg(long, value_delimiter = ',', required = true)]
+        /// Near signer account for each participant
+        participants: Vec<AccountId>,
+        /// Near responder account for each participant. Refer to `indexer/real.rs` for more details.
+        #[arg(long, value_delimiter = ',')]
+        responders: Vec<AccountId>,
+        #[arg(long)]
+        threshold: usize,
+        #[arg(long, default_value = "65536")]
+        desired_triples_to_buffer: usize,
+        #[arg(long, default_value = "8192")]
+        desired_presignatures_to_buffer: usize,
+        #[arg(long, default_value = "1")]
+        desired_responder_keys_per_participant: usize,
+    },
 }
 
 #[derive(Args, Debug)]
@@ -574,7 +596,97 @@ impl Cli {
                 )
                 .await
             }
+            CliCommand::GenerateMigrationTestConfigs {
+                ref output_dir,
+                ref participants,
+                ref responders,
+                threshold,
+                desired_triples_to_buffer,
+                desired_presignatures_to_buffer,
+                desired_responder_keys_per_participant,
+            } => {
+                anyhow::ensure!(
+                    participants.len() == responders.len(),
+                    "Number of participants must match number of responders"
+                );
+                self.run_generate_migration_test_configs(
+                    output_dir,
+                    participants,
+                    responders,
+                    threshold,
+                    desired_triples_to_buffer,
+                    desired_presignatures_to_buffer,
+                    desired_responder_keys_per_participant,
+                )
+                .await
+            }
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn run_generate_migration_test_configs(
+        &self,
+        output_dir: &str,
+        participants: &[AccountId],
+        responders: &[AccountId],
+        threshold: usize,
+        desired_triples_to_buffer: usize,
+        desired_presignatures_to_buffer: usize,
+        desired_responder_keys_per_participant: usize,
+    ) -> anyhow::Result<()> {
+        let mut participants = participants.to_vec();
+        participants.push(
+            participants
+                .get(0)
+                .ok_or(anyhow::anyhow!("expected non-empty participant set"))?
+                .clone(),
+        );
+        let mut responders = responders.to_vec();
+        responders.push(
+            responders
+                .get(0)
+                .ok_or(anyhow::anyhow!("expected non-empty responders set"))?
+                .clone(),
+        );
+        let p2p_key_pairs = participants
+            .iter()
+            .enumerate()
+            .map(|(idx, _account_id)| {
+                let subdir = PathBuf::from(output_dir).join(idx.to_string());
+                PersistentSecrets::generate_or_get_existing(
+                    &subdir,
+                    desired_responder_keys_per_participant,
+                )
+                .map(|secret| secret.p2p_private_key)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let configs = generate_test_p2p_configs(
+            &participants,
+            threshold,
+            PortSeed::CLI_FOR_PYTEST,
+            Some(p2p_key_pairs),
+        )?;
+        let participants_config = configs[0].0.participants.clone();
+        for (i, (_config, _p2p_private_key)) in configs.into_iter().enumerate() {
+            let subdir = format!("{}/{}", output_dir, i);
+            std::fs::create_dir_all(&subdir)?;
+            let file_config = self.create_file_config(
+                &participants[i],
+                &responders[i],
+                i,
+                desired_triples_to_buffer,
+                desired_presignatures_to_buffer,
+            )?;
+            std::fs::write(
+                format!("{}/config.yaml", subdir),
+                serde_yaml::to_string(&file_config)?,
+            )?;
+        }
+        std::fs::write(
+            format!("{}/participants.json", output_dir),
+            serde_json::to_string(&participants_config)?,
+        )?;
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]

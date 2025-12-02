@@ -237,27 +237,20 @@ class Candidate:
 
 
 def config_participant(
-    near_account,
+    account_id: str,
     p2p_public_key: bytes,
-    my_addr,
-    my_port,
-    secrets_file_path,
-    idx,
+    my_addr: str,
+    my_port: str,
+    secrets_file_path: str,
+    responder_account_id: str,
 ) -> Candidate:
-    # near_account = participant["near_account_id"]
-    # p2p_public_key = participant[
-    #    "p2p_public_key"
-    # ]  # note: this is not really how it is done in production... (c.f. above)
     p2p_public_key_near_sdk_representation = serialize_key(p2p_public_key)
 
-    # my_addr = participant["address"]
-    # my_port = participant["port"]
-
-    secrets_file_path = os.path.join(dot_near, str(idx), SECRETS_JSON)
+    # secrets_file_path = os.path.join(dot_near, str(idx), SECRETS_JSON)
     with open(secrets_file_path) as file:
         participant_secrets = json.load(file)
     signer_key = deserialize_key(
-        near_account,
+        account_id,
         participant_secrets["near_signer_key"],
     )
     responder_keys = []
@@ -277,8 +270,8 @@ def config_participant(
 def generate_mpc_configs(
     num_mpc_nodes: int,
     num_respond_aks: int,
-    presignatures_to_buffer: Optional[int],
-) -> List[Candidate]:
+    presignatures_to_buffer: int | None,
+) -> list[Candidate]:
     """
     Generate MPC configs for each participant.
     Without loss of generality, we will make all MPC participant's near account a subaccount of the main (contract) node.
@@ -324,32 +317,40 @@ def generate_mpc_configs(
         p2p_public_key = participant[
             "p2p_public_key"
         ]  # note: this is not really how it is done in production... (c.f. above)
-        p2p_public_key_near_sdk_representation = serialize_key(p2p_public_key)
 
         my_addr = participant["address"]
         my_port = participant["port"]
 
         secrets_file_path = os.path.join(dot_near, str(idx), SECRETS_JSON)
-        with open(secrets_file_path) as file:
-            participant_secrets = json.load(file)
-        signer_key = deserialize_key(
-            near_account,
-            participant_secrets["near_signer_key"],
+        candidate: Candidate = config_participant(
+            account_id=near_account,
+            p2p_public_key=p2p_public_key,
+            my_addr=my_addr,
+            my_port=my_port,
+            secrets_file_path=secrets_file_path,
+            responder_account_id=responder_account_id,
         )
-        responder_keys = []
-        for key in participant_secrets["near_responder_keys"]:
-            responder_keys.append(deserialize_key(responder_account_id, key))
+        candidates.append(candidate)
+    # with open(secrets_file_path) as file:
+    #    participant_secrets = json.load(file)
+    # signer_key = deserialize_key(
+    #    near_account,
+    #    participant_secrets["near_signer_key"],
+    # )
+    # responder_keys = []
+    # for key in participant_secrets["near_responder_keys"]:
+    #    responder_keys.append(deserialize_key(responder_account_id, key))
 
-        backup_key = os.urandom(32)
-        candidates.append(
-            Candidate(
-                signer_key=signer_key,
-                responder_keys=responder_keys,
-                p2p_public_key=p2p_public_key_near_sdk_representation,
-                url=f"http://{my_addr}:{my_port}",
-                backup_key=backup_key,
-            )
-        )
+    # backup_key = os.urandom(32)
+    # candidates.append(
+    #     Candidate(
+    #         signer_key=signer_key,
+    #         responder_keys=responder_keys,
+    #         p2p_public_key=p2p_public_key_near_sdk_representation,
+    #         url=f"http://{my_addr}:{my_port}",
+    #         backup_key=backup_key,
+    #     )
+    # )
     return candidates
 
 
