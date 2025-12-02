@@ -11,6 +11,7 @@ from common_lib import ckd
 from common_lib.constants import TGAS
 from common_lib.contract_state import (
     ContractState,
+    Participant,
     ProtocolState,
     SignatureScheme,
     RunningProtocolState,

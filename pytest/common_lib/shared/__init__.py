@@ -267,6 +267,73 @@ def config_participant(
     )
 
 
+def generate_migration_mpc_configs(
+    num_mpc_nodes: int,
+    num_respond_aks: int,
+    presignatures_to_buffer: int | None,
+) -> list[Candidate]:
+    """
+    Generate MPC configs for each participant.
+    Without loss of generality, we will make all MPC participant's near account a subaccount of the main (contract) node.
+    This will make things easier. Otherwise:
+    FIXME: the canonical way is to create completely new accounts via registrar account.
+      (1) How to get it via py api?
+      (2) observer nodes that corresponds to the mpc participant hasn't been started yet,
+        so we can not make any requests from them yet.
+    """
+    signers = ",".join(f"signer_{i}.test0" for i in range(num_mpc_nodes))
+    responders = [f"responder_{i}.test0" for i in range(num_mpc_nodes)]
+    cmd = (
+        MPC_BINARY_PATH,
+        "generate-migration-test-configs",
+        "--output-dir",
+        dot_near,
+        "--participants",
+        signers,
+        "--responders",
+        ",".join(responders),
+        "--threshold",
+        str(num_mpc_nodes),
+        "--desired-responder-keys-per-participant",  # todo: this is no longer relevant really... (c.f. below)
+        str(num_respond_aks),
+    )
+    if presignatures_to_buffer:
+        cmd = cmd + (
+            "--desired-presignatures-to-buffer",
+            str(presignatures_to_buffer),
+        )
+    subprocess.run(cmd)
+
+    candidates = []
+    with open(pathlib.Path(dot_near / "participants.json")) as file:
+        participants_config = yaml.load(file, Loader=SafeLoaderIgnoreUnknown)
+    for idx, (participant, responder_account_id) in enumerate(
+        zip(
+            participants_config["participants"],
+            responders,
+        )
+    ):
+        near_account = participant["near_account_id"]
+        p2p_public_key = participant[
+            "p2p_public_key"
+        ]  # note: this is not really how it is done in production... (c.f. above)
+
+        my_addr = participant["address"]
+        my_port = participant["port"]
+
+        secrets_file_path = os.path.join(dot_near, str(idx), SECRETS_JSON)
+        candidate: Candidate = config_participant(
+            account_id=near_account,
+            p2p_public_key=p2p_public_key,
+            my_addr=my_addr,
+            my_port=my_port,
+            secrets_file_path=secrets_file_path,
+            responder_account_id=responder_account_id,
+        )
+        candidates.append(candidate)
+    return candidates
+
+
 def generate_mpc_configs(
     num_mpc_nodes: int,
     num_respond_aks: int,
@@ -331,26 +398,6 @@ def generate_mpc_configs(
             responder_account_id=responder_account_id,
         )
         candidates.append(candidate)
-    # with open(secrets_file_path) as file:
-    #    participant_secrets = json.load(file)
-    # signer_key = deserialize_key(
-    #    near_account,
-    #    participant_secrets["near_signer_key"],
-    # )
-    # responder_keys = []
-    # for key in participant_secrets["near_responder_keys"]:
-    #    responder_keys.append(deserialize_key(responder_account_id, key))
-
-    # backup_key = os.urandom(32)
-    # candidates.append(
-    #     Candidate(
-    #         signer_key=signer_key,
-    #         responder_keys=responder_keys,
-    #         p2p_public_key=p2p_public_key_near_sdk_representation,
-    #         url=f"http://{my_addr}:{my_port}",
-    #         backup_key=backup_key,
-    #     )
-    # )
     return candidates
 
 
@@ -393,6 +440,7 @@ def start_cluster_with_mpc(
     presignatures_to_buffer=None,
     start_mpc_nodes=True,
     create_secondary_account=True,
+    for_migration=False,
 ):
     # Overriding to check if all tests pass when validators is always 1.
     num_validators = 1
@@ -402,9 +450,14 @@ def start_cluster_with_mpc(
         num_mpc_nodes,
     )
 
-    candidates = generate_mpc_configs(
-        num_mpc_nodes, num_respond_aks, presignatures_to_buffer
-    )
+    if for_migration:
+        candidates = generate_migration_mpc_configs(
+            num_mpc_nodes, num_respond_aks, presignatures_to_buffer
+        )
+    else:
+        candidates = generate_mpc_configs(
+            num_mpc_nodes, num_respond_aks, presignatures_to_buffer
+        )
 
     move_mpc_configs(observers)
 

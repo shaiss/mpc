@@ -50,9 +50,9 @@ pub struct GetKeysharesArgs {
     /// P2P public key of the MPC node for authentication.
     #[arg(long, env)]
     pub mpc_node_p2p_key: String,
-
+    // hex encryption key
     #[arg(long, env)]
-    pub backup_encryption_key: String,
+    pub backup_encryption_key_hex: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -63,6 +63,7 @@ pub struct PutKeysharesArgs {
     /// P2P public key of the MPC node for authentication.
     #[arg(long, env)]
     pub mpc_node_p2p_key: String,
+    // hex encryption key
     #[arg(long, env)]
-    pub backup_encryption_key: String,
+    pub backup_encryption_key_hex: String,
 }
