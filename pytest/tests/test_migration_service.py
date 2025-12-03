@@ -11,6 +11,7 @@ import subprocess
 import sys
 import os
 import time
+import base58
 import pytest
 
 from nacl.signing import SigningKey
@@ -55,6 +56,10 @@ def call_backup_service(mpc_node: MpcNode, home_dir: str):
     )
     print(f"running command:\n{cmd}\n")
     subprocess.run(cmd)
+    ##
+
+
+# [2m2025-12-03T12:22:47.712775Z[0m [32m INFO[0m [2mmpc_node::indexer::migrations[0m[2m:[0m my migration state changed: MigrationInfo { backup_service_info: Some(BackupServiceInfo { public_key: Ed25519PublicKey([51, 124, 141, 94, 252, 206, 8, 1, 108, 142, 203, 70, 244, 72, 22, 45, 95, 166, 91, 27, 9, 6, 129, 76, 196, 189, 190, 111, 140, 209, 167, 171]) }), active_migration: false }
 
 
 def submit_backup_service_info(cluster: MpcCluster, node_id: int):
@@ -62,7 +67,8 @@ def submit_backup_service_info(cluster: MpcCluster, node_id: int):
     Submits the backup service information to the contract
     """
 
-    json_path = os.path.join(BACKUP_SERVICE_BINARY_PATH, "secrets.json")
+    home_dir = os.path.join(MPC_REPO_DIR / "pytest" / "backup-service")
+    json_path = os.path.join(home_dir, "secrets.json")
     with open(json_path, "r") as f:
         data = json.load(f)
 
@@ -70,16 +76,24 @@ def submit_backup_service_info(cluster: MpcCluster, node_id: int):
 
     # 3. Derive public key
     sk = SigningKey(priv_bytes)
-    pk = sk.verify_key
+    pk_bytes = sk.verify_key.encode()
 
-    # 4. Print results
-    print("Private key bytes (len={}):".format(len(priv_bytes)), priv_bytes)
-    print("Public key bytes (len={}):".format(len(pk.encode())), list(pk.encode()))
-    print("Public key hex:", pk.encode().hex())
-    pk_near = "ed25519:" + pk.encode().hex()
-    print("Public key (NEAR format):", pk_near)
+    # Convert to base58
+    pk_b58 = base58.b58encode(pk_bytes).decode()
 
-    backup_service_info = BackupServiceInfo(pk_near)
+    near_pubkey = f"ed25519:{pk_b58}"
+    # pk = sk.verify_key
+
+    ## 4. Print results
+    # print("Private key bytes (len={}):".format(len(priv_bytes)), priv_bytes)
+    # print("Public key bytes (len={}):".format(len(pk.encode())), list(pk.encode()))
+    # print("Public key hex:", pk.encode().hex())
+    # pk_near = "ed25519:" + pk.encode().hex()
+    # pk_b58 = base58.b58encode(pk_bytes).decode()
+    # near_pk =
+    # print("Public key (NEAR format):", pk_near)
+
+    backup_service_info = BackupServiceInfo(near_pubkey)
     res = cluster.register_backup_service_info(
         node_id, backup_service_info=backup_service_info
     )
@@ -133,6 +147,9 @@ def test_migration_service():
     # 1. call backup service to GET shares
 
     _ = submit_backup_service_info(cluster, 0)
+
+    ## wait until it appears in the webendpoint of node
+    time.sleep(10)
     contract_state = cluster.get_contract_state()
     json_path = os.path.join(home_dir, "contract_state.json")
     with open(json_path, "w", encoding="utf-8") as f:

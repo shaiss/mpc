@@ -1,4 +1,5 @@
 import base64
+from dataclasses import asdict
 import json
 import pathlib
 import sys
@@ -549,10 +550,11 @@ class MpcCluster:
         self, node_id: int, backup_service_info: BackupServiceInfo
     ):
         node = self.mpc_nodes[node_id]
+        # todo: adjust name in contract to "register_backup_service_info"
         tx = node.sign_tx(
             self.mpc_contract_account(),
-            "register_backup_service_info",
-            {"backup_service_info": backup_service_info},
+            "register_backup_service",
+            {"backup_service_info": asdict(backup_service_info)},
         )
         res = node.send_txn_and_check_success(tx)
         return json.dumps(
