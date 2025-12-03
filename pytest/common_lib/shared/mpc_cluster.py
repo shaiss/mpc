@@ -232,7 +232,7 @@ class MpcCluster:
                         node.participant_id,
                         {
                             "sign_pk": node.p2p_public_key,
-                            "url": node.url,
+                            "url": node.p2p_url,
                         },
                     ]
                     for node in self.mpc_nodes
@@ -246,6 +246,7 @@ class MpcCluster:
         the contract is usable.
         """
         args = {"parameters": self.make_threshold_parameters(threshold)}
+        print(f"arg: {args}\n")
         if additional_init_args is not None:
             args.update(additional_init_args)
         tx = self.contract_node.sign_tx(self.contract_node.account_id(), "init", args)

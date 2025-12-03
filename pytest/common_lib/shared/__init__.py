@@ -40,6 +40,7 @@ from key import Key
 
 dot_near = pathlib.Path.home() / ".near"
 SECRETS_JSON = "secrets.json"
+CONFIG_YAML = "config.yaml"
 
 
 def create_function_call_access_key_action(
@@ -226,21 +227,23 @@ class Candidate:
         signer_key: Key,
         responder_keys: list[Key],
         p2p_public_key,
-        url,
+        p2p_url,
         backup_key: bytes,
+        migration_service_url: str,
     ):
-        self.signer_key = signer_key
-        self.responder_keys = responder_keys
+        self.signer_key: Key = signer_key
+        self.responder_keys: list[Key] = responder_keys
         self.p2p_public_key = p2p_public_key
-        self.url = url
-        self.backup_key = backup_key
+        self.p2p_url = p2p_url
+        self.backup_key: bytes = backup_key
+        self.migration_service_url: str = migration_service_url
 
 
 def config_participant(
     account_id: str,
     p2p_public_key: bytes,
-    my_addr: str,
-    my_port: str,
+    p2p_url: str,
+    migration_service_url: str,
     secrets_file_path: str,
     responder_account_id: str,
 ) -> Candidate:
@@ -262,9 +265,24 @@ def config_participant(
         signer_key=signer_key,
         responder_keys=responder_keys,
         p2p_public_key=p2p_public_key_near_sdk_representation,
-        url=f"http://{my_addr}:{my_port}",
+        p2p_url=p2p_url,
         backup_key=backup_key,
+        migration_service_url=migration_service_url,
     )
+
+
+import yaml
+
+
+class Loader(yaml.SafeLoader):
+    pass
+
+
+def block_constructor(loader, node):
+    return loader.construct_mapping(node)
+
+
+Loader.add_constructor("!Block", block_constructor)
 
 
 def generate_migration_mpc_configs(
@@ -320,13 +338,21 @@ def generate_migration_mpc_configs(
 
         my_addr = participant["address"]
         my_port = participant["port"]
+        p2p_url = f"http://{my_addr}:{my_port}"
+
+        config_file_path = os.path.join(dot_near, str(idx), CONFIG_YAML)
+        with open(config_file_path, "r") as f:
+            config = yaml.load(f, Loader=Loader)
+            migration_addr: str = config.get("migration_web_ui").get("host")
+            migration_port: str = config.get("migration_web_ui").get("port")
+            migration_service_url = f"http://{migration_addr}:{migration_port}"
 
         secrets_file_path = os.path.join(dot_near, str(idx), SECRETS_JSON)
         candidate: Candidate = config_participant(
             account_id=near_account,
             p2p_public_key=p2p_public_key,
-            my_addr=my_addr,
-            my_port=my_port,
+            p2p_url=p2p_url,
+            migration_service_url=migration_service_url,
             secrets_file_path=secrets_file_path,
             responder_account_id=responder_account_id,
         )
@@ -387,13 +413,20 @@ def generate_mpc_configs(
 
         my_addr = participant["address"]
         my_port = participant["port"]
+        p2p_url = f"http://{my_addr}:{my_port}"
+        config_file_path = os.path.join(dot_near, str(idx), CONFIG_YAML)
+        with open(config_file_path, "r") as f:
+            config = yaml.load(f, Loader=Loader)
+            migration_addr: str = config.get("migration_web_ui").get("host")
+            migration_port: str = config.get("migration_web_ui").get("port")
+            migration_service_url = f"http://{migration_addr}:{migration_port}"
 
         secrets_file_path = os.path.join(dot_near, str(idx), SECRETS_JSON)
         candidate: Candidate = config_participant(
             account_id=near_account,
             p2p_public_key=p2p_public_key,
-            my_addr=my_addr,
-            my_port=my_port,
+            p2p_url=p2p_url,
+            migration_service_url=migration_service_url,
             secrets_file_path=secrets_file_path,
             responder_account_id=responder_account_id,
         )
@@ -472,9 +505,9 @@ def start_cluster_with_mpc(
     (key, nonce) = cluster.contract_node.get_key_and_nonce()
     create_txs = []
     access_txs = []
-    mpc_nodes: List[MpcNode] = []
+    mpc_nodes: list[MpcNode] = []
     pytest_keys_per_node = []
-    secondary_near_account: Optional[NearAccount] = None
+    secondary_near_account: NearAccount | None = None
 
     for near_node, candidate in zip(observers, candidates):
         # add the nodes responder access key to the list
@@ -568,7 +601,8 @@ def start_cluster_with_mpc(
         mpc_node = MpcNode(
             near_node=near_node,
             signer_key=candidate.signer_key,
-            url=candidate.url,
+            p2p_url=candidate.p2p_url,
+            migration_service_url=candidate.migration_service_url,
             p2p_public_key=candidate.p2p_public_key,
             pytest_signer_keys=pytest_signer_keys,
             backup_key=candidate.backup_key,

@@ -49,13 +49,15 @@ class MpcNode(NearAccount):
         self,
         near_node: LocalNode,
         signer_key: Key,
-        url,
+        p2p_url: str,
+        migration_service_url: str,
         p2p_public_key,
         pytest_signer_keys: list[Key],
         backup_key: bytes,
     ):
         super().__init__(near_node, signer_key, pytest_signer_keys)
-        self.url = url
+        self.p2p_url = p2p_url
+        self.migration_service_url = migration_service_url
         self.p2p_public_key = p2p_public_key
         self.status = MpcNode.NodeStatus.IDLE
         self.participant_id: int | None = None
