@@ -345,7 +345,8 @@ def generate_migration_mpc_configs(
             config = yaml.load(f, Loader=Loader)
             migration_addr: str = config.get("migration_web_ui").get("host")
             migration_port: str = config.get("migration_web_ui").get("port")
-            migration_service_url = f"http://{migration_addr}:{migration_port}"
+            # todo: this is not a url, it's a socket address
+            migration_service_url = f"{migration_addr}:{migration_port}"
 
         secrets_file_path = os.path.join(dot_near, str(idx), SECRETS_JSON)
         candidate: Candidate = config_participant(

@@ -5,10 +5,12 @@ Starts 2 nodes, have node #1 migrate to node #3
 At every step we check that signatures can still be produced.
 """
 
+import json
 import pathlib
 import subprocess
 import sys
-
+import os
+import time
 import pytest
 
 from common_lib.constants import BACKUP_SERVICE_BINARY_PATH, MPC_REPO_DIR
@@ -18,8 +20,6 @@ from common_lib.shared.mpc_node import MpcNode
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 from common_lib import shared
 from common_lib.contracts import load_mpc_contract
-
-import os
 
 
 def set_up_backup_service(home_dir: str):
@@ -34,7 +34,7 @@ def set_up_backup_service(home_dir: str):
 
 
 def call_backup_service(mpc_node: MpcNode, home_dir: str):
-    url = mpc_node.url
+    url = mpc_node.migration_service_url
     p2p_key = mpc_node.p2p_public_key
     backup_encryption_key = mpc_node.backup_key
     cmd = (
@@ -94,7 +94,15 @@ def test_migration_service():
     #            assert p.p2p_public_key == p_info.sign_pk
     # 1. call backup service to GET shares
 
+    contract_state = cluster.get_contract_state()
+    json_path = os.path.join(home_dir, "contract_state.json")
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(contract_state, f, indent=2, ensure_ascii=False)
+
+    print(f"Saved contract state to: {json_path}")
     call_backup_service(mpc_node=mpc_nodes[0], home_dir=home_dir)
+
+    time.sleep(2000)
     # url = mpc_nodes[0].url
     # p2p_key = mpc_nodes[0].p2p_public_key
     # backup_encryption_key = mpc_nodes[0].backup_key

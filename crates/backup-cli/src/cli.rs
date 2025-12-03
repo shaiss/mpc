@@ -45,6 +45,7 @@ pub struct RegisterArgs {
 #[derive(clap::Args, Debug)]
 pub struct GetKeysharesArgs {
     /// URL of the MPC node to retrieve keyshares from.
+    /// misleading, as it is not the url that is required...
     #[arg(long, env)]
     pub mpc_node_url: String,
     /// P2P public key of the MPC node for authentication.
