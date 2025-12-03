@@ -546,7 +546,7 @@ class MpcCluster:
         )
 
     def register_backup_service_info(
-        self, node_id, backup_service_info: BackupServiceInfo
+        self, node_id: int, backup_service_info: BackupServiceInfo
     ):
         node = self.mpc_nodes[node_id]
         tx = node.sign_tx(

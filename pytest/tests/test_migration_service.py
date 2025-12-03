@@ -13,8 +13,12 @@ import os
 import time
 import pytest
 
+from nacl.signing import SigningKey
+
 from common_lib.constants import BACKUP_SERVICE_BINARY_PATH, MPC_REPO_DIR
 from common_lib.contract_state import ProtocolState
+from common_lib.migration_state import BackupServiceInfo
+from common_lib.shared.mpc_cluster import MpcCluster
 from common_lib.shared.mpc_node import MpcNode
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
@@ -51,6 +55,40 @@ def call_backup_service(mpc_node: MpcNode, home_dir: str):
     )
     print(f"running command:\n{cmd}\n")
     subprocess.run(cmd)
+
+
+def submit_backup_service_info(cluster: MpcCluster, node_id: int):
+    """
+    Submits the backup service information to the contract
+    """
+
+    json_path = os.path.join(BACKUP_SERVICE_BINARY_PATH, "secrets.json")
+    with open(json_path, "r") as f:
+        data = json.load(f)
+
+    priv_bytes = bytes(data["p2p_private_key"])
+
+    # 3. Derive public key
+    sk = SigningKey(priv_bytes)
+    pk = sk.verify_key
+
+    # 4. Print results
+    print("Private key bytes (len={}):".format(len(priv_bytes)), priv_bytes)
+    print("Public key bytes (len={}):".format(len(pk.encode())), list(pk.encode()))
+    print("Public key hex:", pk.encode().hex())
+    pk_near = "ed25519:" + pk.encode().hex()
+    print("Public key (NEAR format):", pk_near)
+
+    backup_service_info = BackupServiceInfo(pk_near)
+    res = cluster.register_backup_service_info(
+        node_id, backup_service_info=backup_service_info
+    )
+    print(res)
+    return res
+
+
+# step 1: read public key from contract
+# step 2: submit to contract
 
 
 def test_migration_service():
@@ -94,6 +132,7 @@ def test_migration_service():
     #            assert p.p2p_public_key == p_info.sign_pk
     # 1. call backup service to GET shares
 
+    _ = submit_backup_service_info(cluster, 0)
     contract_state = cluster.get_contract_state()
     json_path = os.path.join(home_dir, "contract_state.json")
     with open(json_path, "w", encoding="utf-8") as f:
