@@ -163,9 +163,11 @@ pub async fn get_keyshares(
         .expect("could not get contract state");
     let keyset =
         get_keyset_from_contract_state(&contract_state).expect("failed to compute current keyset");
+    println!("found keyset: {:?}", keyset);
     let keyshare = mpc_p2p_client
         .get_keyshares(&keyset)
         .await
+        .inspect_err(|err| eprintln!("{err:?}"))
         .expect("fail to get key shares");
     keyshares_storage
         .store_keyshares(&keyshare)
