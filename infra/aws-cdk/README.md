@@ -16,6 +16,23 @@ This directory contains an AWS CDK implementation for deploying NEAR MPC (Multi-
 - Node.js 18+ and npm
 - AWS CDK CLI (`npm install -g aws-cdk`)
 
+## Local Development Setup
+
+For local development, create a `.env.local` file (gitignored) with your configuration:
+
+```bash
+# Copy the example template
+cp .env.example .env.local
+
+# Edit with your values
+# AWS_PROFILE=shai-sandbox-profile
+# VPC_ID=vpc-0ad7ab6659e0293ae
+# NEAR_RPC_IP=10.0.5.132
+# etc.
+```
+
+The deployment scripts (`deploy-mpc-nodes.sh` and `scripts/update-secrets.sh`) will automatically load variables from `.env.local` if it exists. This keeps your personal configuration out of git while making local development easier.
+
 ## Configuration
 
 Configuration can be provided via:

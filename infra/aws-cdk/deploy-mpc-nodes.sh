@@ -9,6 +9,14 @@ echo "   NEAR MPC Node Deployment Script (AWS CDK)"
 echo "════════════════════════════════════════════════════════════"
 echo ""
 
+# Load environment variables from .env.local if it exists
+if [ -f .env.local ]; then
+    echo "📄 Loading environment variables from .env.local..."
+    set -a
+    source .env.local
+    set +a
+fi
+
 # Configuration
 # Set these environment variables or modify defaults below
 AWS_PROFILE="${AWS_PROFILE:-<your-aws-profile>}"

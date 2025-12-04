@@ -4,6 +4,13 @@ set -euo pipefail
 # Script to update AWS Secrets Manager with MPC node keys
 # Usage: ./update-secrets.sh [keys-file] [aws-profile]
 
+# Load environment variables from .env.local if it exists
+if [ -f .env.local ]; then
+    set -a
+    source .env.local
+    set +a
+fi
+
 KEYS_FILE="${1:-./mpc-node-keys.json}"
 AWS_PROFILE="${2:-${AWS_PROFILE:-<your-aws-profile>}}"
 
