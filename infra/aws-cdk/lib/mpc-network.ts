@@ -97,17 +97,17 @@ export class MpcNetwork extends constructs.Construct {
     if (dockerImageUri) {
       containerImage = ecs.ContainerImage.fromRegistry(dockerImageUri);
     } else {
-      this.ecrRepository = new ecr.Repository(this, "MpcNodeRepository", {
-        repositoryName: "mpc-node",
+    this.ecrRepository = new ecr.Repository(this, "MpcNodeRepository", {
+      repositoryName: "mpc-node",
         removalPolicy: cdk.RemovalPolicy.RETAIN,
-        imageScanOnPush: true,
-        lifecycleRules: [
-          {
-            description: "Keep last 10 images",
-            maxImageCount: 10,
-          },
-        ],
-      });
+      imageScanOnPush: true,
+      lifecycleRules: [
+        {
+          description: "Keep last 10 images",
+          maxImageCount: 10,
+        },
+      ],
+    });
 
       const dockerSourceAsset = new s3_assets.Asset(this, "MpcDockerSource", {
         path: repoRoot,
@@ -497,11 +497,11 @@ exports.handler = async (event) => {
 
     // Stack outputs
     if (this.ecrRepository) {
-      new cdk.CfnOutput(this, "MpcEcrRepositoryUri", {
-        value: this.ecrRepository.repositoryUri,
-        description: "ECR repository URI for MPC node images",
-        exportName: "MpcEcrRepositoryUri",
-      });
+    new cdk.CfnOutput(this, "MpcEcrRepositoryUri", {
+      value: this.ecrRepository.repositoryUri,
+      description: "ECR repository URI for MPC node images",
+      exportName: "MpcEcrRepositoryUri",
+    });
     }
 
     new cdk.CfnOutput(this, "MpcClusterName", {

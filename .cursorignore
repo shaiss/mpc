@@ -1,0 +1,16 @@
+# Exclude upstream documentation unrelated to AWS CDK deployment
+docs/
+
+# Exclude build artifacts
+target/
+cdk.out/
+node_modules/
+
+# Exclude test/example configs that might confuse context
+pytest/
+tee_launcher/
+deployment/localnet/
+
+# Exclude Rust/Cargo build metadata
+Cargo.lock
+
