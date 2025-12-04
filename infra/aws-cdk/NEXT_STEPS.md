@@ -21,28 +21,28 @@
 
 ### Step 1: Clean Slate (5 min)
 ```bash
-cd /Users/Shai.Perednik/Documents/code_workspace/near_mobile/cross-chain-simulator/cross-chain-simulator/mpc-repo/infra/aws-cdk
+cd infra/aws-cdk
 
 # Delete stuck stack
 aws cloudformation delete-stack \
   --stack-name MpcStandaloneStack \
-  --profile shai-sandbox-profile
+  --profile "${AWS_PROFILE:-<your-aws-profile>}"
 
 # Wait for deletion
 aws cloudformation wait stack-delete-complete \
   --stack-name MpcStandaloneStack \
-  --profile shai-sandbox-profile
+  --profile "${AWS_PROFILE:-<your-aws-profile>}"
 ```
 
 ### Step 2: Deploy with All Fixes (10 min)
 ```bash
 # Deploy with correct configuration
 npx cdk deploy \
-  --context vpcId=vpc-0ad7ab6659e0293ae \
-  --context nearRpcUrl="http://10.0.5.132:3030" \
+  --context vpcId=<your-vpc-id> \
+  --context nearRpcUrl="http://<your-near-node-ip>:3030" \
   --context nearBootNodes="" \
   --context nearNetworkId="mpc-localnet" \
-  --profile shai-sandbox-profile \
+  --profile "${AWS_PROFILE:-<your-aws-profile>}" \
   --require-approval never
 ```
 
@@ -57,17 +57,17 @@ for i in 0 1 2; do
   aws secretsmanager put-secret-value \
     --secret-id "mpc-node-$i-mpc_account_sk" \
     --secret-string "$(cat /tmp/account_sk_$i.json)" \
-    --profile shai-sandbox-profile --region us-east-1
+    --profile "${AWS_PROFILE:-<your-aws-profile>}" --region us-east-1
   
   aws secretsmanager put-secret-value \
     --secret-id "mpc-node-$i-mpc_p2p_private_key" \
     --secret-string "$(cat /tmp/p2p_key_$i.json)" \
-    --profile shai-sandbox-profile --region us-east-1
+    --profile "${AWS_PROFILE:-<your-aws-profile>}" --region us-east-1
   
   aws secretsmanager put-secret-value \
     --secret-id "mpc-node-$i-mpc_secret_store_key" \
     --secret-string "$(cat /tmp/secret_store_$i.json)" \
-    --profile shai-sandbox-profile --region us-east-1
+    --profile "${AWS_PROFILE:-<your-aws-profile>}" --region us-east-1
 done
 ```
 
@@ -78,30 +78,30 @@ for i in 0 1 2; do
     --cluster mpc-nodes \
     --service "node-$i" \
     --desired-count 1 \
-    --profile shai-sandbox-profile
+    --profile "${AWS_PROFILE:-<your-aws-profile>}"
 done
 ```
 
 ### Step 5: Monitor (5-10 min)
 ```bash
 # Watch service status
-watch -n 5 "aws ecs describe-services --cluster mpc-nodes --services node-0 node-1 node-2 --profile shai-sandbox-profile | jq '.services[] | {name: .serviceName, running: .runningCount, desired: .desiredCount}'"
+watch -n 5 "aws ecs describe-services --cluster mpc-nodes --services node-0 node-1 node-2 --profile "${AWS_PROFILE:-<your-aws-profile>}" | jq '.services[] | {name: .serviceName, running: .runningCount, desired: .desiredCount}'"
 
 # Check for EFS mount success (should NOT see ResourceInitializationError)
 aws ecs describe-services \
   --cluster mpc-nodes \
   --services node-0 \
-  --profile shai-sandbox-profile \
+  --profile "${AWS_PROFILE:-<your-aws-profile>}" \
   | jq '.services[0].events[0:3]'
 ```
 
 ### Step 6: Verify Logs (5 min)
 ```bash
 # Get log group name from CDK outputs
-LOG_GROUP=$(aws logs describe-log-groups --profile shai-sandbox-profile | jq -r '.logGroups[] | select(.logGroupName | contains("MpcStandaloneStack")) | .logGroupName' | head -1)
+LOG_GROUP=$(aws logs describe-log-groups --profile "${AWS_PROFILE:-<your-aws-profile>}" | jq -r '.logGroups[] | select(.logGroupName | contains("MpcStandaloneStack")) | .logGroupName' | head -1)
 
 # Tail logs
-aws logs tail "$LOG_GROUP" --follow --profile shai-sandbox-profile
+aws logs tail "$LOG_GROUP" --follow --profile "${AWS_PROFILE:-<your-aws-profile>}"
 ```
 
 **Expected Success Indicators**:

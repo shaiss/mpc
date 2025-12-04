@@ -63,7 +63,7 @@ export NEAR_BOOT_NODES="ed25519:..."
 export MPC_CONTRACT_ID="v1.signer.node0"
 
 # Deploy stack
-npx cdk deploy --profile shai-sandbox-profile
+npx cdk deploy --profile <your-aws-profile>
 ```
 
 ### Populate Secrets
@@ -75,7 +75,7 @@ After deployment, populate the Secrets Manager secrets with actual MPC node keys
 aws secretsmanager put-secret-value \
   --secret-id mpc-node-0-mpc_account_sk \
   --secret-string "ed25519:..." \
-  --profile shai-sandbox-profile
+  --profile <your-aws-profile>
 ```
 
 Required secrets per node:
@@ -95,10 +95,10 @@ VPC_ID=$(aws cloudformation describe-stacks \
   --stack-name near-localnet-infrastructure \
   --query 'Stacks[0].Outputs[?OutputKey==`NearLocalnetVpcId`].OutputValue' \
   --output text \
-  --profile shai-sandbox-profile)
+  --profile <your-aws-profile>)
 
 # Deploy with existing VPC
-npx cdk deploy --context vpcId=$VPC_ID --profile shai-sandbox-profile
+npx cdk deploy --context vpcId=$VPC_ID --profile <your-aws-profile>
 ```
 
 ## Outputs

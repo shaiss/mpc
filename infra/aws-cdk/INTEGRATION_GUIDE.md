@@ -79,23 +79,23 @@ The MPC CDK stack supports **three deployment patterns**:
 cd infra/aws-cdk
 
 npx cdk deploy \
-  --context vpcId=vpc-0ad7ab6659e0293ae \
-  --context nearRpcUrl=http://10.0.5.132:3030 \
-  --context nearBootNodes=ed25519:PUBKEY@10.0.5.132:24567 \
+  --context vpcId=<your-vpc-id> \
+  --context nearRpcUrl=http://<your-near-node-ip>:3030 \
+  --context nearBootNodes=ed25519:PUBKEY@<your-near-node-ip>:24567 \
   --context mpcContractId=v1.signer.node0 \
-  --profile shai-sandbox-profile \
+  --profile "${AWS_PROFILE:-<your-aws-profile>}" \
   --require-approval never
 ```
 
 ### Environment Variables (Alternative)
 
 ```bash
-export VPC_ID=vpc-0ad7ab6659e0293ae
-export NEAR_RPC_URL=http://10.0.5.132:3030
-export NEAR_BOOT_NODES=ed25519:PUBKEY@10.0.5.132:24567
+export VPC_ID=<your-vpc-id>
+export NEAR_RPC_URL=http://<your-near-node-ip>:3030
+export NEAR_BOOT_NODES=ed25519:PUBKEY@<your-near-node-ip>:24567
 export MPC_CONTRACT_ID=v1.signer.node0
 
-npx cdk deploy --profile shai-sandbox-profile
+npx cdk deploy --profile "${AWS_PROFILE:-<your-aws-profile>}"
 ```
 
 ---
@@ -155,7 +155,7 @@ export class NearNodeStack extends cdk.Stack {
 
 ```bash
 cd AWSNodeRunner
-npx cdk deploy --profile shai-sandbox-profile
+npx cdk deploy --profile "${AWS_PROFILE:-<your-aws-profile>}"
 ```
 
 ### Step 3: Deploy MPC Stack with Import
@@ -166,7 +166,7 @@ cd mpc-repo/infra/aws-cdk
 npx cdk deploy \
   --context importFromStack=true \
   --context awsNodeRunnerStackName=AWSNodeRunnerStack \
-  --profile shai-sandbox-profile \
+  --profile "${AWS_PROFILE:-<your-aws-profile>}" \
   --require-approval never
 ```
 
@@ -223,9 +223,9 @@ export class NearMpcIntegratedStack extends cdk.Stack {
     // 3. Deploy MPC Network (as construct)
     const mpcNetwork = new MpcNetwork(this, 'MpcNetwork', {
       vpc,
-      nearRpcUrl: 'http://10.0.5.132:3030', // from NEAR node
+      nearRpcUrl: 'http://<your-near-node-ip>:3030', // from NEAR node
       nearNetworkId: 'mpc-localnet',
-      nearBootNodes: 'ed25519:PUBKEY@10.0.5.132:24567',
+      nearBootNodes: 'ed25519:PUBKEY@<your-near-node-ip>:24567',
       mpcContractId: 'v1.signer.node0',
       nodeConfigs: [
         { accountId: 'mpc-node-0.node0', localAddress: 'node-0.mpc.local' },
@@ -253,7 +253,7 @@ export class NearMpcIntegratedStack extends cdk.Stack {
 ```bash
 cd near-mpc-integrated
 
-npx cdk deploy --profile shai-sandbox-profile
+npx cdk deploy --profile "${AWS_PROFILE:-<your-aws-profile>}"
 ```
 
 ---
@@ -266,9 +266,9 @@ For Pattern 2 (Integrated), the AWSNodeRunner stack **must** export these values
 
 | Export Name | Description | Example Value |
 |-------------|-------------|---------------|
-| `{StackName}-VpcId` | VPC ID where NEAR node runs | `vpc-0ad7ab6659e0293ae` |
-| `{StackName}-NearRpcUrl` | NEAR RPC private endpoint | `http://10.0.5.132:3030` |
-| `{StackName}-NearBootNodes` | Boot nodes for MPC indexer | `ed25519:ABC...@10.0.5.132:24567` |
+| `{StackName}-VpcId` | VPC ID where NEAR node runs | `<your-vpc-id>` |
+| `{StackName}-NearRpcUrl` | NEAR RPC private endpoint | `http://<your-near-node-ip>:3030` |
+| `{StackName}-NearBootNodes` | Boot nodes for MPC indexer | `ed25519:ABC...@<your-near-node-ip>:24567` |
 | `{StackName}-NearNetworkId` | NEAR network/chain ID | `mpc-localnet` |
 | `{StackName}-MpcContractId` | MPC contract account | `v1.signer.node0` |
 

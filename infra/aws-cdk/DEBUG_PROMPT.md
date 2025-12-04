@@ -10,9 +10,9 @@ Use this prompt to start a new Cursor session focused on debugging the MPC AWS C
 I am debugging the AWS CDK deployment for NEAR MPC nodes. The deployment is failing with "NotStabilized" errors for ECS services.
 
 **Context**:
-- Working directory: `/Users/Shai.Perednik/Documents/code_workspace/near_mobile/cross-chain-simulator/cross-chain-simulator/mpc-repo/infra/aws-cdk`
+- Working directory: `infra/aws-cdk`
 - Stack name: `MpcStandaloneStack`
-- AWS Profile: `shai-sandbox-profile` (already authenticated)
+- AWS Profile: `<your-aws-profile>` (already authenticated)
 - Three Cursor rules have been created with context:
   - `near-mpc-repo`: MPC repository structure and integration
   - `mpc-aws-infra`: AWS CDK architecture details
@@ -29,8 +29,8 @@ The stack deployment fails during ECS service creation with "Exceeded attempts t
 
 **What I Need Help With**:
 1. Investigate why ECS tasks are not stabilizing:
-   - Check stopped task reasons: `aws ecs list-tasks --cluster mpc-nodes --desired-status STOPPED --profile shai-sandbox-profile`
-   - Get task details: `aws ecs describe-tasks --cluster mpc-nodes --tasks <task-arn> --profile shai-sandbox-profile`
+   - Check stopped task reasons: `aws ecs list-tasks --cluster mpc-nodes --desired-status STOPPED --profile "${AWS_PROFILE:-<your-aws-profile>}"`
+   - Get task details: `aws ecs describe-tasks --cluster mpc-nodes --tasks <task-arn> --profile "${AWS_PROFILE:-<your-aws-profile>}"`
    - Check CloudWatch logs if available
 
 2. Identify and fix the root cause:
@@ -40,13 +40,13 @@ The stack deployment fails during ECS service creation with "Exceeded attempts t
    - Is it EFS mount permissions?
 
 3. Deploy successfully:
-   - Delete the failed stack if needed: `aws cloudformation delete-stack --stack-name MpcStandaloneStack --profile shai-sandbox-profile`
+   - Delete the failed stack if needed: `aws cloudformation delete-stack --stack-name MpcStandaloneStack --profile "${AWS_PROFILE:-<your-aws-profile>}"`
    - Update the code in `lib/mpc-network.ts` if fixes are needed
-   - Deploy: `npx cdk deploy --context vpcId=vpc-0ad7ab6659e0293ae --profile shai-sandbox-profile --require-approval never`
+   - Deploy: `npx cdk deploy --context vpcId=<your-vpc-id> --profile "${AWS_PROFILE:-<your-aws-profile>}" --require-approval never`
 
 **Integration Requirements**:
 The MPC nodes need to integrate with:
-- NEAR RPC: `http://10.0.5.132:3030` (from AWSNodeRunner)
+- NEAR RPC: `http://<your-near-node-ip>:3030` (from AWSNodeRunner)
 - Network: `localnet`
 - Contract: `v1.signer.node0` (or timestamped variant `v1-signer-*.node0`)
 
@@ -62,24 +62,24 @@ The MPC nodes need to integrate with:
 
 ```bash
 # Check stack status
-aws cloudformation describe-stacks --stack-name MpcStandaloneStack --profile shai-sandbox-profile
+aws cloudformation describe-stacks --stack-name MpcStandaloneStack --profile "${AWS_PROFILE:-<your-aws-profile>}"
 
 # List stopped tasks
-aws ecs list-tasks --cluster mpc-nodes --desired-status STOPPED --profile shai-sandbox-profile
+aws ecs list-tasks --cluster mpc-nodes --desired-status STOPPED --profile "${AWS_PROFILE:-<your-aws-profile>}"
 
 # Get task details (replace TASK_ID)
-aws ecs describe-tasks --cluster mpc-nodes --tasks <task-id> --profile shai-sandbox-profile
+aws ecs describe-tasks --cluster mpc-nodes --tasks <task-id> --profile "${AWS_PROFILE:-<your-aws-profile>}"
 
 # Check CloudWatch logs (if log group exists)
-aws logs tail /aws/ecs/mpc-node-0 --follow --profile shai-sandbox-profile
+aws logs tail /aws/ecs/mpc-node-0 --follow --profile "${AWS_PROFILE:-<your-aws-profile>}"
 
 # Delete stack and retry
-aws cloudformation delete-stack --stack-name MpcStandaloneStack --profile shai-sandbox-profile
-aws cloudformation wait stack-delete-complete --stack-name MpcStandaloneStack --profile shai-sandbox-profile
+aws cloudformation delete-stack --stack-name MpcStandaloneStack --profile "${AWS_PROFILE:-<your-aws-profile>}"
+aws cloudformation wait stack-delete-complete --stack-name MpcStandaloneStack --profile "${AWS_PROFILE:-<your-aws-profile>}"
 
 # Deploy
-cd /Users/Shai.Perednik/Documents/code_workspace/near_mobile/cross-chain-simulator/cross-chain-simulator/mpc-repo/infra/aws-cdk
+cd infra/aws-cdk
 npm run build
-npx cdk deploy --context vpcId=vpc-0ad7ab6659e0293ae --profile shai-sandbox-profile --require-approval never
+npx cdk deploy --context vpcId=<your-vpc-id> --profile "${AWS_PROFILE:-<your-aws-profile>}" --require-approval never
 ```
 

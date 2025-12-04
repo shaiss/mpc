@@ -102,11 +102,11 @@ Using provided MPC_SECRET_STORE_KEY from environment ✅
    ```bash
    cd /path/to/mpc-repo/infra/aws-cdk
    npx cdk deploy \
-     --context vpcId=vpc-0ad7ab6659e0293ae \
-     --context nearRpcUrl="http://10.0.5.132:3030" \
+     --context vpcId=<your-vpc-id> \
+     --context nearRpcUrl="http://<your-near-node-ip>:3030" \
      --context nearBootNodes="" \
      --context nearNetworkId="mpc-localnet" \
-     --profile shai-sandbox-profile \
+     --profile "${AWS_PROFILE:-<your-aws-profile>}" \
      --require-approval never
    ```
 3. Services should start successfully
@@ -125,12 +125,12 @@ Using provided MPC_SECRET_STORE_KEY from environment ✅
    ```bash
    cd /path/to/mpc-repo/infra/aws-cdk
    npx cdk deploy \
-     --context vpcId=vpc-0ad7ab6659e0293ae \
-     --context nearRpcUrl="http://10.0.5.132:3030" \
+     --context vpcId=<your-vpc-id> \
+     --context nearRpcUrl="http://<your-near-node-ip>:3030" \
      --context nearBootNodes="" \
      --context nearNetworkId="mpc-localnet" \
      --context dockerImage="<account-id>.dkr.ecr.us-east-1.amazonaws.com/mpc-node:latest" \
-     --profile shai-sandbox-profile \
+     --profile "${AWS_PROFILE:-<your-aws-profile>}" \
      --require-approval never
    ```
 
@@ -140,8 +140,8 @@ Using provided MPC_SECRET_STORE_KEY from environment ✅
    ./scripts/push-image-to-ecr.sh
    
    # Or manually:
-   AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile shai-sandbox-profile --query Account --output text)
-   aws ecr get-login-password --region us-east-1 --profile shai-sandbox-profile | \
+   AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile "${AWS_PROFILE:-<your-aws-profile>}" --query Account --output text)
+   aws ecr get-login-password --region us-east-1 --profile "${AWS_PROFILE:-<your-aws-profile>}" | \
      docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
    docker pull nearone/mpc-node-gcp:testnet-release
    docker tag nearone/mpc-node-gcp:testnet-release "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/mpc-node:latest"
@@ -155,7 +155,7 @@ Using provided MPC_SECRET_STORE_KEY from environment ✅
        --cluster mpc-nodes \
        --service "node-$i" \
        --force-new-deployment \
-       --profile shai-sandbox-profile \
+       --profile "${AWS_PROFILE:-<your-aws-profile>}" \
        --region us-east-1
    done
    ```
@@ -197,7 +197,7 @@ Using provided MPC_SECRET_STORE_KEY from environment ✅
 │                      AWS Account                            │
 │                                                             │
 │  ┌────────────────────────────────────────────────────────┐│
-│  │  VPC (vpc-0ad7ab6659e0293ae)                          ││
+│  │  VPC (<your-vpc-id>)                          ││
 │  │                                                        ││
 │  │  ┌──────────────────────────────────────────────────┐ ││
 │  │  │  Private Subnet 1          Private Subnet 2      │ ││
@@ -252,7 +252,7 @@ Once deployed successfully, you should see:
 ```bash
 # Service status
 aws ecs describe-services --cluster mpc-nodes --services node-0 node-1 node-2 \
-  --profile shai-sandbox-profile --region us-east-1 \
+  --profile "${AWS_PROFILE:-<your-aws-profile>}" --region us-east-1 \
   --query 'services[].[serviceName,runningCount,desiredCount]'
 
 # Expected output:
@@ -263,7 +263,7 @@ aws ecs describe-services --cluster mpc-nodes --services node-0 node-1 node-2 \
 
 ```bash
 # CloudWatch logs
-aws logs tail <log-group-name> --profile shai-sandbox-profile --region us-east-1
+aws logs tail <log-group-name> --profile "${AWS_PROFILE:-<your-aws-profile>}" --region us-east-1
 
 # Expected output:
 # Near node initialized

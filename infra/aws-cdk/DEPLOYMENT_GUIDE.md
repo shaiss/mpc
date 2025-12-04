@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-1. **AWS CLI configured** with profile `shai-sandbox-profile`
+1. **AWS CLI configured** with an AWS profile (set via `AWS_PROFILE` environment variable or `--profile` flag)
 2. **NEAR RPC Node running** (from AWSNodeRunner)
 3. **VPC ID** from AWSNodeRunner deployment
 4. **Node.js and npm** installed
@@ -21,16 +21,19 @@ This CDK stack deploys 3 MPC nodes on AWS ECS Fargate:
 ### 1. Delete Old Stack (if exists)
 
 ```bash
-cd /Users/Shai.Perednik/Documents/code_workspace/near_mobile/cross-chain-simulator/cross-chain-simulator/mpc-repo/infra/aws-cdk
+cd infra/aws-cdk
+
+# Set your AWS profile (or use --profile flag)
+export AWS_PROFILE=<your-aws-profile>
 
 aws cloudformation delete-stack \
   --stack-name MpcStandaloneStack \
-  --profile shai-sandbox-profile
+  --profile "$AWS_PROFILE"
   
 # Wait for deletion to complete
 aws cloudformation wait stack-delete-complete \
   --stack-name MpcStandaloneStack \
-  --profile shai-sandbox-profile
+  --profile "$AWS_PROFILE"
 ```
 
 ### 2. Get NEAR Node Information
@@ -38,13 +41,14 @@ aws cloudformation wait stack-delete-complete \
 From your AWSNodeRunner deployment:
 
 ```bash
-# Get NEAR RPC private IP (should be something like http://10.0.5.132:3030)
-NEAR_RPC_URL="http://10.0.5.132:3030"
+# Get NEAR RPC private IP (replace with your actual NEAR node IP)
+NEAR_RPC_IP="<your-near-node-ip>"
+NEAR_RPC_URL="http://${NEAR_RPC_IP}:3030"
 
 # Get boot nodes from NEAR node
 NEAR_BOOT_NODES=$(curl -s $NEAR_RPC_URL/status | jq -r '.node_key' | sed 's/^/ed25519:/')
-# Append the IP:port
-NEAR_BOOT_NODES="${NEAR_BOOT_NODES}@10.0.5.132:24567"
+# Append the IP:port (replace port if different)
+NEAR_BOOT_NODES="${NEAR_BOOT_NODES}@${NEAR_RPC_IP}:24567"
 
 # Verify it works
 curl -s $NEAR_RPC_URL/status | jq
@@ -55,11 +59,15 @@ curl -s $NEAR_RPC_URL/status | jq
 The stack is now configured with correct defaults for localnet:
 
 ```bash
+# Set your AWS profile and VPC ID
+export AWS_PROFILE=<your-aws-profile>
+export VPC_ID=<your-vpc-id>
+
 npx cdk deploy \
-  --context vpcId=vpc-0ad7ab6659e0293ae \
+  --context vpcId="$VPC_ID" \
   --context nearRpcUrl="$NEAR_RPC_URL" \
   --context nearBootNodes="$NEAR_BOOT_NODES" \
-  --profile shai-sandbox-profile \
+  --profile "$AWS_PROFILE" \
   --require-approval never
 ```
 
@@ -78,8 +86,8 @@ chmod +x scripts/*.sh
 
 # This creates mpc-node-keys.json with test keys
 
-# Update AWS Secrets Manager
-./scripts/update-secrets.sh mpc-node-keys.json shai-sandbox-profile
+# Update AWS Secrets Manager (uses AWS_PROFILE environment variable if set)
+./scripts/update-secrets.sh mpc-node-keys.json "${AWS_PROFILE:-<your-aws-profile>}"
 ```
 
 #### Option B: Manual Secret Population
@@ -90,20 +98,23 @@ For each node (0, 1, 2), update the following secrets:
 # Replace with your actual keys
 NODE_ID=0
 
+# Set AWS profile (or use --profile flag)
+export AWS_PROFILE="${AWS_PROFILE:-<your-aws-profile>}"
+
 aws secretsmanager put-secret-value \
   --secret-id "mpc-node-${NODE_ID}-mpc_account_sk" \
   --secret-string '{"key":"ed25519:YOUR_ACCOUNT_SECRET_KEY_HERE"}' \
-  --profile shai-sandbox-profile
+  --profile "$AWS_PROFILE"
 
 aws secretsmanager put-secret-value \
   --secret-id "mpc-node-${NODE_ID}-mpc_p2p_private_key" \
   --secret-string '{"key":"ed25519:YOUR_P2P_PRIVATE_KEY_HERE"}' \
-  --profile shai-sandbox-profile
+  --profile "$AWS_PROFILE"
 
 aws secretsmanager put-secret-value \
   --secret-id "mpc-node-${NODE_ID}-mpc_secret_store_key" \
   --secret-string '{"key":"11111111111111111111111111111111"}' \
-  --profile shai-sandbox-profile
+  --profile "$AWS_PROFILE"
 ```
 
 ### 5. Start ECS Services
@@ -111,23 +122,26 @@ aws secretsmanager put-secret-value \
 After populating secrets, start the services:
 
 ```bash
+# Set AWS profile (or use --profile flag)
+export AWS_PROFILE="${AWS_PROFILE:-<your-aws-profile>}"
+
 aws ecs update-service \
   --cluster mpc-nodes \
   --service node-0 \
   --desired-count 1 \
-  --profile shai-sandbox-profile
+  --profile "$AWS_PROFILE"
 
 aws ecs update-service \
   --cluster mpc-nodes \
   --service node-1 \
   --desired-count 1 \
-  --profile shai-sandbox-profile
+  --profile "$AWS_PROFILE"
 
 aws ecs update-service \
   --cluster mpc-nodes \
   --service node-2 \
   --desired-count 1 \
-  --profile shai-sandbox-profile
+  --profile "$AWS_PROFILE"
 ```
 
 ## Debugging
@@ -138,7 +152,7 @@ aws ecs update-service \
 aws ecs describe-services \
   --cluster mpc-nodes \
   --services node-0 node-1 node-2 \
-  --profile shai-sandbox-profile \
+  --profile "${AWS_PROFILE:-<your-aws-profile>}" \
   | jq '.services[] | {name: .serviceName, status: .status, running: .runningCount, desired: .desiredCount}'
 ```
 
@@ -149,7 +163,7 @@ aws ecs describe-services \
 aws logs tail \
   MpcStandaloneStack-MpcNetworkNode0TaskDefinitionNode0ContainerLogGroup2C63C370-rmIlUL6BTl9Z \
   --follow \
-  --profile shai-sandbox-profile
+  --profile "${AWS_PROFILE:-<your-aws-profile>}"
 ```
 
 ### Check Stopped Tasks
@@ -158,13 +172,13 @@ aws logs tail \
 aws ecs list-tasks \
   --cluster mpc-nodes \
   --desired-status STOPPED \
-  --profile shai-sandbox-profile \
+  --profile "${AWS_PROFILE:-<your-aws-profile>}" \
   | jq -r '.taskArns[]' \
   | head -1 \
   | xargs -I {} aws ecs describe-tasks \
       --cluster mpc-nodes \
       --tasks {} \
-      --profile shai-sandbox-profile \
+      --profile "${AWS_PROFILE:-<your-aws-profile>}" \
   | jq '.tasks[0].stoppedReason'
 ```
 
@@ -217,7 +231,7 @@ Each node requires 3 secrets in AWS Secrets Manager:
 **Fix**:
 1. Verify NEAR node security group allows ingress from MPC nodes SG
 2. Check NEAR RPC is listening on private IP (not just 127.0.0.1)
-3. Test connectivity from within VPC: `curl http://10.0.5.132:3030/status`
+3. Test connectivity from within VPC: `curl http://<your-near-node-ip>:3030/status`
 
 ### Issue: Boot nodes connection fails
 
@@ -246,8 +260,8 @@ After successful deployment, export MPC node endpoints:
 
 ```bash
 aws servicediscovery list-services \
-  --filters Name=NAMESPACE_ID,Values=$(aws servicediscovery list-namespaces --profile shai-sandbox-profile | jq -r '.Namespaces[] | select(.Name | contains("mpc")) | .Id') \
-  --profile shai-sandbox-profile \
+  --filters Name=NAMESPACE_ID,Values=$(aws servicediscovery list-namespaces --profile "${AWS_PROFILE:-<your-aws-profile>}" | jq -r '.Namespaces[] | select(.Name | contains("mpc")) | .Id') \
+  --profile "${AWS_PROFILE:-<your-aws-profile>}" \
   | jq -r '.Services[] | "http://\(.Name).mpc-mpcstandalonestack.local:8080"'
 ```
 

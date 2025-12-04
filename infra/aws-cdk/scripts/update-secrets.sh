@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage: ./update-secrets.sh [keys-file] [aws-profile]
 
 KEYS_FILE="${1:-./mpc-node-keys.json}"
-AWS_PROFILE="${2:-shai-sandbox-profile}"
+AWS_PROFILE="${2:-${AWS_PROFILE:-<your-aws-profile>}}"
 
 if [ ! -f "$KEYS_FILE" ]; then
     echo "ERROR: Keys file not found: $KEYS_FILE"
@@ -63,5 +63,6 @@ done
 echo "✅ All secrets updated successfully!"
 echo ""
 echo "You can now deploy the CDK stack:"
-echo "  npx cdk deploy --context vpcId=vpc-0ad7ab6659e0293ae --profile $AWS_PROFILE --require-approval never"
+echo "  export VPC_ID=<your-vpc-id>"
+echo "  npx cdk deploy --context vpcId=\$VPC_ID --profile $AWS_PROFILE --require-approval never"
 

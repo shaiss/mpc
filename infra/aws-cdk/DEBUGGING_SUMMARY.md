@@ -90,23 +90,23 @@
 
 ```bash
 # From your AWSNodeRunner deployment, get:
-NEAR_RPC_URL="http://10.0.5.132:3030"
+NEAR_RPC_URL="http://<your-near-node-ip>:3030"
 
 # Get boot node info
 NEAR_NODE_KEY=$(curl -s $NEAR_RPC_URL/status | jq -r '.node_key')
-NEAR_BOOT_NODES="${NEAR_NODE_KEY}@10.0.5.132:24567"
+NEAR_BOOT_NODES="${NEAR_NODE_KEY}@<your-near-node-ip>:24567"
 ```
 
 ### 2. Deploy the Stack
 
 ```bash
-cd /Users/Shai.Perednik/Documents/code_workspace/near_mobile/cross-chain-simulator/cross-chain-simulator/mpc-repo/infra/aws-cdk
+cd infra/aws-cdk
 
 npx cdk deploy \
-  --context vpcId=vpc-0ad7ab6659e0293ae \
+  --context vpcId=<your-vpc-id> \
   --context nearRpcUrl="$NEAR_RPC_URL" \
   --context nearBootNodes="$NEAR_BOOT_NODES" \
-  --profile shai-sandbox-profile \
+  --profile "${AWS_PROFILE:-<your-aws-profile>}" \
   --require-approval never
 ```
 
@@ -115,7 +115,7 @@ npx cdk deploy \
 ```bash
 # Option A: Use test key generator (quick, for testing only)
 ./scripts/generate-test-keys.sh 3
-./scripts/update-secrets.sh mpc-node-keys.json shai-sandbox-profile
+./scripts/update-secrets.sh mpc-node-keys.json <your-aws-profile>
 
 # Option B: Manual population
 # See DEPLOYMENT_GUIDE.md section 4
@@ -130,7 +130,7 @@ for service in node-0 node-1 node-2; do
     --cluster mpc-nodes \
     --service $service \
     --desired-count 1 \
-    --profile shai-sandbox-profile
+    --profile "${AWS_PROFILE:-<your-aws-profile>}"
 done
 ```
 
@@ -138,12 +138,12 @@ done
 
 ```bash
 # Watch service status
-watch -n 5 "aws ecs describe-services --cluster mpc-nodes --services node-0 node-1 node-2 --profile shai-sandbox-profile | jq '.services[] | {name: .serviceName, running: .runningCount, desired: .desiredCount, status: .status}'"
+watch -n 5 "aws ecs describe-services --cluster mpc-nodes --services node-0 node-1 node-2 --profile "${AWS_PROFILE:-<your-aws-profile>}" | jq '.services[] | {name: .serviceName, running: .runningCount, desired: .desiredCount, status: .status}'"
 
 # View logs (replace with actual log group name from CDK output)
 aws logs tail MpcStandaloneStack-MpcNetworkNode0TaskDefinitionNode0ContainerLogGroup2C63C370-* \
   --follow \
-  --profile shai-sandbox-profile
+  --profile "${AWS_PROFILE:-<your-aws-profile>}"
 ```
 
 ## Expected Successful Deployment
@@ -186,7 +186,7 @@ When everything is working correctly, you should see:
 │  │  NEAR Node   │                    │  MPC Nodes   │       │
 │  │  (EC2)       │◄───────RPC────────│  (ECS        │       │
 │  │              │                    │   Fargate)   │       │
-│  │ 10.0.5.132   │                    │              │       │
+│  │ <your-near-node-ip>   │                    │              │       │
 │  │ :3030 (RPC)  │                    │ Node 0       │       │
 │  │ :24567 (P2P) │◄────Boot Nodes────│ Node 1       │       │
 │  └──────────────┘                    │ Node 2       │       │

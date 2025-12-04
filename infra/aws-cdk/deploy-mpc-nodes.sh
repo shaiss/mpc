@@ -10,9 +10,10 @@ echo "════════════════════════�
 echo ""
 
 # Configuration
-AWS_PROFILE="${AWS_PROFILE:-shai-sandbox-profile}"
-VPC_ID="${VPC_ID:-vpc-0ad7ab6659e0293ae}"
-NEAR_RPC_IP="${NEAR_RPC_IP:-10.0.5.132}"
+# Set these environment variables or modify defaults below
+AWS_PROFILE="${AWS_PROFILE:-<your-aws-profile>}"
+VPC_ID="${VPC_ID:-<your-vpc-id>}"
+NEAR_RPC_IP="${NEAR_RPC_IP:-<your-near-node-ip>}"
 NEAR_RPC_PORT="${NEAR_RPC_PORT:-3030}"
 NEAR_P2P_PORT="${NEAR_P2P_PORT:-24567}"
 NODE_COUNT="${NODE_COUNT:-3}"
