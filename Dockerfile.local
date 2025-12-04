@@ -1,0 +1,42 @@
+# Build stage
+FROM rust:1.81-slim-bookworm as builder
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    protobuf-compiler \
+    git \
+    g++ \
+    make \
+    cmake \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy source code
+COPY . .
+
+# Build binary
+RUN cargo build --release --bin mpc-node
+
+# Runtime stage
+FROM debian:bookworm-slim
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    openssl \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy binary from builder
+COPY --from=builder /app/target/release/mpc-node /app/mpc-node
+# Copy start script (from local context where we copied it)
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
+# Environment setup
+ENV RUST_LOG=info
+EXPOSE 3000
+ENTRYPOINT ["/app/start.sh"]
