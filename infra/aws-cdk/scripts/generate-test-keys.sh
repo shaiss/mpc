@@ -1,32 +1,37 @@
 #!/bin/bash
 set -euo pipefail
 
-# Script to generate test keys for MPC nodes in localnet environment
-# This generates placeholder keys that can be used for local testing
-# 
-# For production (testnet/mainnet), keys should be generated securely
-# and managed according to security best practices.
+# Script to generate proper MPC keys for localnet environment
+# Uses the Rust generate_keys crate to create valid NEAR ed25519 keys
+# Based on: infra/scripts/generate_keys/src/main.rs
 
 echo "=== MPC Node Test Key Generator ==="
-echo "This script generates test keys for localnet MPC nodes"
+echo "This script generates proper ed25519 keys using near-crypto"
 echo ""
-
-# Check if near CLI is installed
-if ! command -v near &> /dev/null; then
-    echo "ERROR: NEAR CLI is not installed"
-    echo "Install from: https://docs.near.org/tools/near-cli"
-    exit 1
-fi
 
 # Number of nodes
 NODE_COUNT=${1:-3}
 
+# Path to the Rust key generator
+KEY_GEN_PATH="$(cd "$(dirname "$0")/../../scripts/generate_keys" && pwd)"
+
+echo "Building key generator (this may take a moment on first run)..."
+cd "$KEY_GEN_PATH"
+if ! cargo build --release --quiet 2>/dev/null; then
+    echo "⚠️  Warning: Release build failed, trying debug build..."
+    cargo build --quiet
+    KEY_GEN_BIN="$KEY_GEN_PATH/target/debug/generate_keys"
+else
+    KEY_GEN_BIN="$KEY_GEN_PATH/target/release/generate_keys"
+fi
+
+echo "✅ Key generator ready"
+echo ""
 echo "Generating keys for $NODE_COUNT nodes..."
 echo ""
 
-# Create temp directory for keys
-TEMP_DIR=$(mktemp -d)
-trap "rm -rf $TEMP_DIR" EXIT
+# Go back to aws-cdk directory
+cd - > /dev/null
 
 # Output file
 OUTPUT_FILE="./mpc-node-keys.json"
@@ -36,29 +41,17 @@ echo "{" > "$OUTPUT_FILE"
 for i in $(seq 0 $((NODE_COUNT - 1))); do
     echo "Generating keys for node-$i..."
     
-    # Generate a key pair using NEAR CLI
-    # For localnet testing, we create a simple implicit account
     ACCOUNT_ID="mpc-node-$i.node0"
     
-    # Generate account key (ed25519)
-    near account create-account fund-myself \
-        "$ACCOUNT_ID" \
-        '0.1 NEAR' \
-        autogenerate-new-keypair \
-        save-to-legacy-keychain \
-        sign-as test.near \
-        network-config custom \
-        --rpc-url http://127.0.0.1:3030 \
-        --send || true
+    # Run the Rust key generator to get proper NEAR ed25519 keys
+    KEY_OUTPUT=$($KEY_GEN_BIN)
     
-    # For testing, we'll use a simple format
-    # In production, these would be proper ed25519 keys from NEAR accounts
-    
-    # Generate test P2P key (in practice, MPC node generates this)
-    P2P_KEY="ed25519:$(openssl rand -hex 32)"
-    
-    # Get account key from keychain or generate a test key
-    ACCOUNT_SK="ed25519:$(openssl rand -hex 32)"
+    # Parse the output (format: "p2p public key sign_pk: ...\np2p secret key sign_sk: ...\n...")
+    P2P_PK=$(echo "$KEY_OUTPUT" | grep "p2p public key sign_pk:" | cut -d ' ' -f 5)
+    P2P_KEY=$(echo "$KEY_OUTPUT" | grep "p2p secret key sign_sk:" | cut -d ' ' -f 5)
+    ACCOUNT_SK=$(echo "$KEY_OUTPUT" | grep "near account secret key:" | cut -d ' ' -f 5)
+    ACCOUNT_PK=$(echo "$KEY_OUTPUT" | grep "near account public key:" | cut -d ' ' -f 5)
+    SECRET_STORE_KEY=$(echo "$KEY_OUTPUT" | grep "near local encryption key:" | cut -d ' ' -f 5)
     
     # Add to JSON output
     if [ $i -gt 0 ]; then
@@ -69,8 +62,10 @@ for i in $(seq 0 $((NODE_COUNT - 1))); do
   "node-$i": {
     "MPC_ACCOUNT_ID": "$ACCOUNT_ID",
     "MPC_ACCOUNT_SK": "$ACCOUNT_SK",
+    "MPC_ACCOUNT_PK": "$ACCOUNT_PK",
     "MPC_P2P_PRIVATE_KEY": "$P2P_KEY",
-    "MPC_SECRET_STORE_KEY": "$(openssl rand -hex 16)"
+    "MPC_P2P_PUBLIC_KEY": "$P2P_PK",
+    "MPC_SECRET_STORE_KEY": "$SECRET_STORE_KEY"
   }
 EOF
 done

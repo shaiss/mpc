@@ -1,0 +1,142 @@
+---
+description: NEAR MPC repository structure and AWS CDK contribution context
+globs: cross-chain-simulator/cross-chain-simulator/mpc-repo/**/*
+---
+# NEAR MPC Repository Context
+
+## Repository Overview
+This is the official NEAR MPC (Multi-Party Computation) node repository from https://github.com/near/mpc.
+
+**Local Path**: `/Users/Shai.Perednik/Documents/code_workspace/near_mobile/cross-chain-simulator/cross-chain-simulator/mpc-repo`
+
+## Purpose
+MPC nodes implement secure multi-party threshold signature generation for NEAR's chain abstraction infrastructure. They enable NEAR accounts to sign transactions on multiple blockchains without exposing private keys.
+
+## Key Architecture Components
+
+### 1. NEAR Indexer
+- Tracks the shard where the signing smart contract (`v1.signer`) is deployed
+- Monitors successful calls to the `sign` function
+- Maps requests to leader nodes for signature generation
+
+### 2. MPC Signing (cait-sith protocol)
+- **Beaver Triple Generation**: Background process generating cryptographic building blocks (target: 1M triples)
+- **Presignature Generation**: Uses two Beaver triples
+- **Signature Generation**: Fast final step using presignatures
+
+## Directory Structure
+
+```
+mpc-repo/
+├── crates/
+│   ├── contract/           # v1.signer smart contract
+│   ├── node/              # MPC node binary
+│   └── ...
+├── deployment/
+│   ├── start.sh           # Entrypoint script for containers
+│   ├── Dockerfile-node    # Docker image definition
+│   └── localnet/          # Genesis config for localnet
+├── infra/
+│   ├── partner-testnet/   # GCP Terraform (REFERENCE)
+│   ├── partner-mainnet/   # GCP Terraform (REFERENCE)
+│   └── aws-cdk/          # AWS CDK implementation (OUR CODE)
+│       ├── bin/mpc-app.ts
+│       ├── lib/mpc-network.ts
+│       └── lib/mpc-standalone-stack.ts
+└── docs/
+    └── localnet/          # Localnet setup guides
+```
+
+## GCP Reference Implementation
+The existing `infra/partner-testnet` and `infra/partner-mainnet` are Terraform configurations for deploying MPC nodes on Google Cloud Platform.
+
+**Key Files**:
+- `infra/partner-testnet/main.tf`: GCP VM configuration
+- `infra/configs/mpc_cloud_config.yml`: Container environment variables and systemd service
+- `infra/scripts/mpc_init.sh`: Disk formatting and initialization
+
+**Configuration Pattern (GCP)**:
+- Uses `n2d-standard-16` VMs (16 vCPU, mainnet)
+- 500GB persistent SSD per node
+- Secrets fetched from GCP Secret Manager
+- Host networking (`--net host`)
+
+## AWS CDK Implementation
+We are adding `infra/aws-cdk` to provide an AWS alternative using ECS Fargate.
+
+**Translation from GCP to AWS**:
+- GCP VMs → AWS ECS Fargate
+- GCP Persistent Disk → AWS EFS
+- GCP Secret Manager → AWS Secrets Manager
+- Static IPs → AWS Cloud Map
+
+## Environment Variables (from deployment/start.sh)
+Required for MPC nodes:
+- `MPC_ACCOUNT_ID`: NEAR account for this node
+- `MPC_CONTRACT_ID`: Signer contract ID (e.g., `v1.signer.node0`)
+- `MPC_ENV`: **CRITICAL**: Chain-id - MUST be `"mpc-localnet"` for localnet (NOT `"localnet"`)
+- `MPC_HOME_DIR`: Data directory (e.g., `/data`)
+- `NEAR_RPC_URL`: NEAR RPC endpoint (e.g., `http://10.0.5.132:3030`) - **REQUIRED** but not always documented
+- `NEAR_BOOT_NODES`: Comma-separated boot nodes (format: `ed25519:PUBKEY@IP:PORT`)
+- `MPC_P2P_PRIVATE_KEY`: libp2p private key (ed25519, must be real key)
+- `MPC_ACCOUNT_SK`: NEAR account secret key (ed25519, must be real key)
+- `MPC_SECRET_STORE_KEY`: Encryption key for local storage (any 32-char string)
+- `RUST_BACKTRACE`, `RUST_LOG`: Logging config
+
+### Critical Notes
+1. **MPC_ENV values**: `"mpc-localnet"`, `"testnet"`, or `"mainnet"` (not just `"localnet"`!)
+2. **MPC_SECRET_STORE_KEY**: Can be any random 32-character string (arbitrary encryption key)
+3. **MPC_ACCOUNT_SK & MPC_P2P_PRIVATE_KEY**: MUST be real ed25519 keys (cannot be placeholders)
+4. **NEAR_RPC_URL**: Required for indexer to connect to blockchain (not optional)
+
+## Integration with Other Projects
+
+### AWSNodeRunner
+- **Path**: `/Users/Shai.Perednik/Documents/code_workspace/near_mobile/AWSNodeRunner`
+- **Purpose**: Deploys NEAR localnet node on AWS EC2
+- **Exports**: VPC ID, NEAR RPC URL (consumed by MPC CDK)
+
+### cross-chain-simulator
+- **Path**: `/Users/Shai.Perednik/Documents/code_workspace/near_mobile/cross-chain-simulator`
+- **Purpose**: Chain Signatures simulator, orchestrates MPC network
+- **Relationship**: Can import the `MpcNetwork` construct from `mpc-repo/infra/aws-cdk` for integrated deployment
+
+## Deployment Flow
+
+### Recommended: Loosely-Coupled Architecture
+The MPC CDK stack supports THREE deployment patterns:
+
+1. **Standalone** (Manual Context):
+   ```bash
+   npx cdk deploy --context vpcId=vpc-xxx --context nearRpcUrl=http://x.x.x.x:3030
+   ```
+   Use when: Deploying MPC nodes independently with existing infrastructure
+
+2. **Integrated** (CloudFormation Exports):
+   ```bash
+   # AWSNodeRunner exports: VpcId, NearRpcUrl, NearBootNodes
+   npx cdk deploy --context importFromStack=true
+   ```
+   Use when: Deploying with AWSNodeRunner stack for automatic configuration
+
+3. **Composed** (Parent Stack):
+   ```typescript
+   const mpc = new MpcNetwork(this, 'MPC', {
+     vpc: nearNode.vpc,
+     nearRpcUrl: nearNode.rpcUrl
+   });
+   ```
+   Use when: Building integrated system with both stacks as components
+
+### Integration Flow
+1. **AWSNodeRunner** deploys NEAR localnet → exports VPC, RPC URL, boot nodes
+2. **MPC CDK** imports from AWSNodeRunner OR uses context parameters
+3. **cross-chain-simulator** uses MPC nodes for signature generation
+
+### Benefits of Loosely-Coupled Design
+- ✅ Automatic value sync when using CloudFormation exports
+- ✅ CloudFormation dependency tracking prevents deployment order errors
+- ✅ Still supports standalone deployment with context
+- ✅ Follows AWS best practices for modular architecture
+
+See `infra/aws-cdk/INTEGRATION_GUIDE.md` for detailed patterns and examples.

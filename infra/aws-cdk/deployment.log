@@ -1,0 +1,330 @@
+═══════════════════════════════════════════════════════════
+   NEAR MPC Complete Deployment Script
+═══════════════════════════════════════════════════════════
+
+📄 Loading configuration from .env.local...
+Configuration:
+  AWS Profile: shai-sandbox-profile
+  VPC ID: vpc-0ad7ab6659e0293ae
+  NEAR RPC: http://10.0.5.132:3030
+  Network: mpc-localnet
+  Nodes: 3
+
+[1/5] Getting NEAR node boot nodes...
+   Getting node key from instance i-062152597d7981c0a...
+   \033[0;32m✅ Boot nodes: ed25519:7PGseFbWxvYVgZ89K1uTJKYoKetWs7BJtbyXDzfbAcqX@10.0.5.132:24567\033[0m
+
+[2/5] Generating MPC test keys...
+=== MPC Node Test Key Generator ===
+This script generates proper ed25519 keys using near-crypto
+
+Building key generator (this may take a moment on first run)...
+✅ Key generator ready
+
+Generating keys for 3 nodes...
+
+Generating keys for node-0...
+Generating keys for node-1...
+Generating keys for node-2...
+
+✅ Test keys generated and saved to: ./mpc-node-keys.json
+
+⚠️  IMPORTANT: These are TEST keys for localnet only!
+   For production, generate keys securely and never commit them to git.
+
+Next steps:
+1. Review the generated keys in ./mpc-node-keys.json
+2. Use update-secrets.sh to populate AWS Secrets Manager
+3. Deploy the CDK stack
+   \033[0;32m✅ Keys generated\033[0m
+
+[3/5] Building CDK project...
+npm warn Unknown user config "always-auth" (//localhost:4873/:always-auth). This will stop working in the next major version of npm.
+
+> aws-cdk@0.1.0 build
+> tsc
+
+   \033[0;32m✅ Build complete\033[0m
+
+[4/5] Deploying CDK stack...
+   This may take 5-10 minutes...
+npm warn Unknown user config "always-auth" (//localhost:4873/:always-auth). This will stop working in the next major version of npm.
+npm warn Unknown user config "always-auth" (//localhost:4873/:always-auth). This will stop working in the next major version of npm.
+🔧 Standalone deployment - using context/environment configuration
+
+✨  Synthesis time: 3.56s
+
+MpcStandaloneStack: start: Building MpcStandaloneStack Template
+MpcStandaloneStack: success: Built MpcStandaloneStack Template
+MpcStandaloneStack: start: Publishing MpcStandaloneStack Template (311843862895-us-east-1-f68afdff)
+MpcStandaloneStack: success: Published MpcStandaloneStack Template (311843862895-us-east-1-f68afdff)
+MpcStandaloneStack: deploying... [1/1]
+MpcStandaloneStack: creating CloudFormation changeset...
+MpcStandaloneStack |  0/34 | 4:08:51 PM | REVIEW_IN_PROGRESS   | AWS::CloudFormation::Stack                 | MpcStandaloneStack User Initiated
+MpcStandaloneStack |  0/34 | 4:09:02 PM | CREATE_IN_PROGRESS   | AWS::CloudFormation::Stack                 | MpcStandaloneStack User Initiated
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::ServiceDiscovery::PrivateDnsNamespace | MpcNetwork/MpcNamespace (MpcNetworkMpcNamespaceB7266257) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::EC2::SecurityGroup                    | MpcNetwork/MpcSecurityGroup (MpcNetworkMpcSecurityGroup7A7BA7EF) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::EC2::Volume                           | MpcNetwork/Node0Volume (MpcNetworkNode0Volume79DAB955) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::EC2::Volume                           | MpcNetwork/Node1Volume (MpcNetworkNode1Volume2B5FB921) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node1MPC_ACCOUNT_SKSecret (MpcNetworkNode1MPCACCOUNTSKSecret8D1AFA9F) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node0MPC_SECRET_STORE_KEYSecret (MpcNetworkNode0MPCSECRETSTOREKEYSecret764D16CE) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::EC2::Volume                           | MpcNetwork/Node2Volume (MpcNetworkNode2VolumeBB0E2AB6) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node1MPC_SECRET_STORE_KEYSecret (MpcNetworkNode1MPCSECRETSTOREKEYSecret9B00BE85) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node0MPC_ACCOUNT_SKSecret (MpcNetworkNode0MPCACCOUNTSKSecret744A175D) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node1MPC_P2P_PRIVATE_KEYSecret (MpcNetworkNode1MPCP2PPRIVATEKEYSecret879A5B7E) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node2MPC_SECRET_STORE_KEYSecret (MpcNetworkNode2MPCSECRETSTOREKEYSecretAB1ADB52) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node2MPC_ACCOUNT_SKSecret (MpcNetworkNode2MPCACCOUNTSKSecret0505679C) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node0MPC_P2P_PRIVATE_KEYSecret (MpcNetworkNode0MPCP2PPRIVATEKEYSecret01E6ECCC) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::IAM::Role                             | MpcNetwork/InstanceRole (MpcNetworkInstanceRole970FCA3F) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node2MPC_P2P_PRIVATE_KEYSecret (MpcNetworkNode2MPCP2PPRIVATEKEYSecret3582017F) 
+MpcStandaloneStack |  0/34 | 4:09:06 PM | CREATE_IN_PROGRESS   | AWS::CDK::Metadata                         | CDKMetadata/Default (CDKMetadata) 
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node0MPC_ACCOUNT_SKSecret (MpcNetworkNode0MPCACCOUNTSKSecret744A175D) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node1MPC_P2P_PRIVATE_KEYSecret (MpcNetworkNode1MPCP2PPRIVATEKEYSecret879A5B7E) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node2MPC_SECRET_STORE_KEYSecret (MpcNetworkNode2MPCSECRETSTOREKEYSecretAB1ADB52) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::IAM::Role                             | MpcNetwork/InstanceRole (MpcNetworkInstanceRole970FCA3F) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node2MPC_ACCOUNT_SKSecret (MpcNetworkNode2MPCACCOUNTSKSecret0505679C) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node1MPC_SECRET_STORE_KEYSecret (MpcNetworkNode1MPCSECRETSTOREKEYSecret9B00BE85) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node0MPC_P2P_PRIVATE_KEYSecret (MpcNetworkNode0MPCP2PPRIVATEKEYSecret01E6ECCC) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node2MPC_P2P_PRIVATE_KEYSecret (MpcNetworkNode2MPCP2PPRIVATEKEYSecret3582017F) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node1MPC_ACCOUNT_SKSecret (MpcNetworkNode1MPCACCOUNTSKSecret8D1AFA9F) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::SecretsManager::Secret                | MpcNetwork/Node0MPC_SECRET_STORE_KEYSecret (MpcNetworkNode0MPCSECRETSTOREKEYSecret764D16CE) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::CDK::Metadata                         | CDKMetadata/Default (CDKMetadata) Resource creation Initiated
+MpcStandaloneStack |  0/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::ServiceDiscovery::PrivateDnsNamespace | MpcNetwork/MpcNamespace (MpcNetworkMpcNamespaceB7266257) Resource creation Initiated
+MpcStandaloneStack |  1/34 | 4:09:07 PM | CREATE_COMPLETE      | AWS::CDK::Metadata                         | CDKMetadata/Default (CDKMetadata) 
+MpcStandaloneStack |  1/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::EC2::Volume                           | MpcNetwork/Node1Volume (MpcNetworkNode1Volume2B5FB921) Resource creation Initiated
+MpcStandaloneStack |  1/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::EC2::Volume                           | MpcNetwork/Node2Volume (MpcNetworkNode2VolumeBB0E2AB6) Resource creation Initiated
+MpcStandaloneStack |  1/34 | 4:09:07 PM | CREATE_IN_PROGRESS   | AWS::EC2::Volume                           | MpcNetwork/Node0Volume (MpcNetworkNode0Volume79DAB955) Resource creation Initiated
+MpcStandaloneStack |  2/34 | 4:09:08 PM | CREATE_COMPLETE      | AWS::SecretsManager::Secret                | MpcNetwork/Node0MPC_ACCOUNT_SKSecret (MpcNetworkNode0MPCACCOUNTSKSecret744A175D) 
+MpcStandaloneStack |  3/34 | 4:09:08 PM | CREATE_COMPLETE      | AWS::SecretsManager::Secret                | MpcNetwork/Node2MPC_SECRET_STORE_KEYSecret (MpcNetworkNode2MPCSECRETSTOREKEYSecretAB1ADB52) 
+MpcStandaloneStack |  4/34 | 4:09:08 PM | CREATE_COMPLETE      | AWS::SecretsManager::Secret                | MpcNetwork/Node2MPC_ACCOUNT_SKSecret (MpcNetworkNode2MPCACCOUNTSKSecret0505679C) 
+MpcStandaloneStack |  5/34 | 4:09:08 PM | CREATE_COMPLETE      | AWS::SecretsManager::Secret                | MpcNetwork/Node1MPC_SECRET_STORE_KEYSecret (MpcNetworkNode1MPCSECRETSTOREKEYSecret9B00BE85) 
+MpcStandaloneStack |  6/34 | 4:09:08 PM | CREATE_COMPLETE      | AWS::SecretsManager::Secret                | MpcNetwork/Node0MPC_P2P_PRIVATE_KEYSecret (MpcNetworkNode0MPCP2PPRIVATEKEYSecret01E6ECCC) 
+MpcStandaloneStack |  7/34 | 4:09:08 PM | CREATE_COMPLETE      | AWS::SecretsManager::Secret                | MpcNetwork/Node1MPC_P2P_PRIVATE_KEYSecret (MpcNetworkNode1MPCP2PPRIVATEKEYSecret879A5B7E) 
+MpcStandaloneStack |  8/34 | 4:09:08 PM | CREATE_COMPLETE      | AWS::SecretsManager::Secret                | MpcNetwork/Node2MPC_P2P_PRIVATE_KEYSecret (MpcNetworkNode2MPCP2PPRIVATEKEYSecret3582017F) 
+MpcStandaloneStack |  9/34 | 4:09:08 PM | CREATE_COMPLETE      | AWS::SecretsManager::Secret                | MpcNetwork/Node1MPC_ACCOUNT_SKSecret (MpcNetworkNode1MPCACCOUNTSKSecret8D1AFA9F) 
+MpcStandaloneStack | 10/34 | 4:09:08 PM | CREATE_COMPLETE      | AWS::SecretsManager::Secret                | MpcNetwork/Node0MPC_SECRET_STORE_KEYSecret (MpcNetworkNode0MPCSECRETSTOREKEYSecret764D16CE) 
+MpcStandaloneStack | 10/34 | 4:09:08 PM | CREATE_IN_PROGRESS   | AWS::EC2::SecurityGroup                    | MpcNetwork/MpcSecurityGroup (MpcNetworkMpcSecurityGroup7A7BA7EF) Resource creation Initiated
+MpcStandaloneStack | 11/34 | 4:09:14 PM | CREATE_COMPLETE      | AWS::EC2::Volume                           | MpcNetwork/Node2Volume (MpcNetworkNode2VolumeBB0E2AB6) 
+MpcStandaloneStack | 12/34 | 4:09:14 PM | CREATE_COMPLETE      | AWS::EC2::Volume                           | MpcNetwork/Node1Volume (MpcNetworkNode1Volume2B5FB921) 
+MpcStandaloneStack | 13/34 | 4:09:14 PM | CREATE_COMPLETE      | AWS::EC2::Volume                           | MpcNetwork/Node0Volume (MpcNetworkNode0Volume79DAB955) 
+MpcStandaloneStack | 14/34 | 4:09:16 PM | CREATE_COMPLETE      | AWS::EC2::SecurityGroup                    | MpcNetwork/MpcSecurityGroup (MpcNetworkMpcSecurityGroup7A7BA7EF) 
+MpcStandaloneStack | 14/34 | 4:09:16 PM | CREATE_IN_PROGRESS   | AWS::EC2::SecurityGroupIngress             | MpcNetwork/MpcSecurityGroup/from MpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434:24567 (MpcNetworkMpcSecurityGroupfromMpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434245676C635E1D) 
+MpcStandaloneStack | 14/34 | 4:09:16 PM | CREATE_IN_PROGRESS   | AWS::EC2::SecurityGroupIngress             | MpcNetwork/MpcSecurityGroup/from MpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434:8080 (MpcNetworkMpcSecurityGroupfromMpcStandaloneStackMpcNetworkMpcSecurityGroupDFA524348080C5DFB380) 
+MpcStandaloneStack | 14/34 | 4:09:16 PM | CREATE_IN_PROGRESS   | AWS::EC2::SecurityGroupIngress             | MpcNetwork/MpcSecurityGroup/from MpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434:3030 (MpcNetworkMpcSecurityGroupfromMpcStandaloneStackMpcNetworkMpcSecurityGroupDFA5243430302DE49873) 
+MpcStandaloneStack | 14/34 | 4:09:17 PM | CREATE_IN_PROGRESS   | AWS::EC2::SecurityGroupIngress             | MpcNetwork/MpcSecurityGroup/from MpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434:24567 (MpcNetworkMpcSecurityGroupfromMpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434245676C635E1D) Resource creation Initiated
+MpcStandaloneStack | 14/34 | 4:09:17 PM | CREATE_IN_PROGRESS   | AWS::EC2::SecurityGroupIngress             | MpcNetwork/MpcSecurityGroup/from MpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434:8080 (MpcNetworkMpcSecurityGroupfromMpcStandaloneStackMpcNetworkMpcSecurityGroupDFA524348080C5DFB380) Resource creation Initiated
+MpcStandaloneStack | 14/34 | 4:09:17 PM | CREATE_IN_PROGRESS   | AWS::EC2::SecurityGroupIngress             | MpcNetwork/MpcSecurityGroup/from MpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434:3030 (MpcNetworkMpcSecurityGroupfromMpcStandaloneStackMpcNetworkMpcSecurityGroupDFA5243430302DE49873) Resource creation Initiated
+MpcStandaloneStack | 15/34 | 4:09:18 PM | CREATE_COMPLETE      | AWS::EC2::SecurityGroupIngress             | MpcNetwork/MpcSecurityGroup/from MpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434:8080 (MpcNetworkMpcSecurityGroupfromMpcStandaloneStackMpcNetworkMpcSecurityGroupDFA524348080C5DFB380) 
+MpcStandaloneStack | 16/34 | 4:09:18 PM | CREATE_COMPLETE      | AWS::EC2::SecurityGroupIngress             | MpcNetwork/MpcSecurityGroup/from MpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434:3030 (MpcNetworkMpcSecurityGroupfromMpcStandaloneStackMpcNetworkMpcSecurityGroupDFA5243430302DE49873) 
+MpcStandaloneStack | 17/34 | 4:09:18 PM | CREATE_COMPLETE      | AWS::EC2::SecurityGroupIngress             | MpcNetwork/MpcSecurityGroup/from MpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434:24567 (MpcNetworkMpcSecurityGroupfromMpcStandaloneStackMpcNetworkMpcSecurityGroupDFA52434245676C635E1D) 
+MpcStandaloneStack | 18/34 | 4:09:24 PM | CREATE_COMPLETE      | AWS::IAM::Role                             | MpcNetwork/InstanceRole (MpcNetworkInstanceRole970FCA3F) 
+MpcStandaloneStack | 18/34 | 4:09:24 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/Node0Instance/InstanceProfile (MpcNetworkNode0InstanceInstanceProfile09373A88) 
+MpcStandaloneStack | 18/34 | 4:09:24 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/Node1Instance/InstanceProfile (MpcNetworkNode1InstanceInstanceProfile895A8004) 
+MpcStandaloneStack | 18/34 | 4:09:24 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/Node2Instance/InstanceProfile (MpcNetworkNode2InstanceInstanceProfileFCB6187F) 
+MpcStandaloneStack | 18/34 | 4:09:24 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/InstanceProfile (MpcNetworkInstanceProfileDDC58A09) 
+MpcStandaloneStack | 18/34 | 4:09:25 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/Node0Instance/InstanceProfile (MpcNetworkNode0InstanceInstanceProfile09373A88) Resource creation Initiated
+MpcStandaloneStack | 18/34 | 4:09:25 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/Node1Instance/InstanceProfile (MpcNetworkNode1InstanceInstanceProfile895A8004) Resource creation Initiated
+MpcStandaloneStack | 18/34 | 4:09:25 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/Node2Instance/InstanceProfile (MpcNetworkNode2InstanceInstanceProfileFCB6187F) Resource creation Initiated
+MpcStandaloneStack | 18/34 | 4:09:25 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/InstanceProfile (MpcNetworkInstanceProfileDDC58A09) Resource creation Initiated
+MpcStandaloneStack | 18/34 | 4:09:26 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/Node1Instance/InstanceProfile (MpcNetworkNode1InstanceInstanceProfile895A8004) Eventual consistency check initiated
+MpcStandaloneStack | 18/34 | 4:09:26 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/Node0Instance/InstanceProfile (MpcNetworkNode0InstanceInstanceProfile09373A88) Eventual consistency check initiated
+MpcStandaloneStack | 18/34 | 4:09:26 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/Node2Instance/InstanceProfile (MpcNetworkNode2InstanceInstanceProfileFCB6187F) Eventual consistency check initiated
+MpcStandaloneStack | 18/34 | 4:09:26 PM | CREATE_IN_PROGRESS   | AWS::IAM::InstanceProfile                  | MpcNetwork/InstanceProfile (MpcNetworkInstanceProfileDDC58A09) Eventual consistency check initiated
+MpcStandaloneStack | 19/34 | 4:09:51 PM | CREATE_COMPLETE      | AWS::ServiceDiscovery::PrivateDnsNamespace | MpcNetwork/MpcNamespace (MpcNetworkMpcNamespaceB7266257) 
+MpcStandaloneStack | 19/34 | 4:09:52 PM | CREATE_IN_PROGRESS   | AWS::ServiceDiscovery::Service             | MpcNetwork/Node2Service (MpcNetworkNode2ServiceB7C6B9D5) 
+MpcStandaloneStack | 19/34 | 4:09:52 PM | CREATE_IN_PROGRESS   | AWS::ServiceDiscovery::Service             | MpcNetwork/Node1Service (MpcNetworkNode1ServiceE73884B0) 
+MpcStandaloneStack | 19/34 | 4:09:52 PM | CREATE_IN_PROGRESS   | AWS::IAM::Policy                           | MpcNetwork/InstanceRole/DefaultPolicy (MpcNetworkInstanceRoleDefaultPolicy8F68693C) 
+MpcStandaloneStack | 19/34 | 4:09:53 PM | CREATE_IN_PROGRESS   | AWS::ServiceDiscovery::Service             | MpcNetwork/Node0Service (MpcNetworkNode0Service95F8A223) 
+MpcStandaloneStack | 19/34 | 4:09:53 PM | CREATE_IN_PROGRESS   | AWS::IAM::Policy                           | MpcNetwork/InstanceRole/DefaultPolicy (MpcNetworkInstanceRoleDefaultPolicy8F68693C) Resource creation Initiated
+MpcStandaloneStack | 19/34 | 4:09:54 PM | CREATE_IN_PROGRESS   | AWS::ServiceDiscovery::Service             | MpcNetwork/Node2Service (MpcNetworkNode2ServiceB7C6B9D5) Resource creation Initiated
+MpcStandaloneStack | 19/34 | 4:09:54 PM | CREATE_IN_PROGRESS   | AWS::ServiceDiscovery::Service             | MpcNetwork/Node0Service (MpcNetworkNode0Service95F8A223) Resource creation Initiated
+MpcStandaloneStack | 19/34 | 4:09:54 PM | CREATE_IN_PROGRESS   | AWS::ServiceDiscovery::Service             | MpcNetwork/Node1Service (MpcNetworkNode1ServiceE73884B0) Resource creation Initiated
+MpcStandaloneStack | 20/34 | 4:09:54 PM | CREATE_COMPLETE      | AWS::ServiceDiscovery::Service             | MpcNetwork/Node2Service (MpcNetworkNode2ServiceB7C6B9D5) 
+MpcStandaloneStack | 21/34 | 4:09:54 PM | CREATE_COMPLETE      | AWS::ServiceDiscovery::Service             | MpcNetwork/Node1Service (MpcNetworkNode1ServiceE73884B0) 
+MpcStandaloneStack | 22/34 | 4:09:54 PM | CREATE_COMPLETE      | AWS::ServiceDiscovery::Service             | MpcNetwork/Node0Service (MpcNetworkNode0Service95F8A223) 
+MpcStandaloneStack | 23/34 | 4:10:09 PM | CREATE_COMPLETE      | AWS::IAM::Policy                           | MpcNetwork/InstanceRole/DefaultPolicy (MpcNetworkInstanceRoleDefaultPolicy8F68693C) 
+MpcStandaloneStack | 24/34 | 4:11:36 PM | CREATE_COMPLETE      | AWS::IAM::InstanceProfile                  | MpcNetwork/Node0Instance/InstanceProfile (MpcNetworkNode0InstanceInstanceProfile09373A88) 
+MpcStandaloneStack | 25/34 | 4:11:36 PM | CREATE_COMPLETE      | AWS::IAM::InstanceProfile                  | MpcNetwork/Node1Instance/InstanceProfile (MpcNetworkNode1InstanceInstanceProfile895A8004) 
+MpcStandaloneStack | 26/34 | 4:11:36 PM | CREATE_COMPLETE      | AWS::IAM::InstanceProfile                  | MpcNetwork/Node2Instance/InstanceProfile (MpcNetworkNode2InstanceInstanceProfileFCB6187F) 
+MpcStandaloneStack | 27/34 | 4:11:36 PM | CREATE_COMPLETE      | AWS::IAM::InstanceProfile                  | MpcNetwork/InstanceProfile (MpcNetworkInstanceProfileDDC58A09) 
+MpcStandaloneStack | 27/34 | 4:11:36 PM | CREATE_IN_PROGRESS   | AWS::EC2::Instance                         | MpcNetwork/Node0Instance (MpcNetworkNode0Instance943D9E5A) 
+MpcStandaloneStack | 27/34 | 4:11:37 PM | CREATE_IN_PROGRESS   | AWS::EC2::Instance                         | MpcNetwork/Node1Instance (MpcNetworkNode1Instance15FD7B87) 
+MpcStandaloneStack | 27/34 | 4:11:37 PM | CREATE_IN_PROGRESS   | AWS::EC2::Instance                         | MpcNetwork/Node2Instance (MpcNetworkNode2Instance9EBD98C5) 
+MpcStandaloneStack | 27/34 | 4:11:39 PM | CREATE_IN_PROGRESS   | AWS::EC2::Instance                         | MpcNetwork/Node1Instance (MpcNetworkNode1Instance15FD7B87) Resource creation Initiated
+MpcStandaloneStack | 27/34 | 4:11:39 PM | CREATE_IN_PROGRESS   | AWS::EC2::Instance                         | MpcNetwork/Node0Instance (MpcNetworkNode0Instance943D9E5A) Resource creation Initiated
+MpcStandaloneStack | 27/34 | 4:11:39 PM | CREATE_IN_PROGRESS   | AWS::EC2::Instance                         | MpcNetwork/Node2Instance (MpcNetworkNode2Instance9EBD98C5) Resource creation Initiated
+MpcStandaloneStack | 28/34 | 4:11:51 PM | CREATE_COMPLETE      | AWS::EC2::Instance                         | MpcNetwork/Node1Instance (MpcNetworkNode1Instance15FD7B87) 
+MpcStandaloneStack | 29/34 | 4:11:51 PM | CREATE_COMPLETE      | AWS::EC2::Instance                         | MpcNetwork/Node2Instance (MpcNetworkNode2Instance9EBD98C5) 
+MpcStandaloneStack | 30/34 | 4:11:52 PM | CREATE_COMPLETE      | AWS::EC2::Instance                         | MpcNetwork/Node0Instance (MpcNetworkNode0Instance943D9E5A) 
+MpcStandaloneStack | 30/34 | 4:11:52 PM | CREATE_IN_PROGRESS   | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node1VolumeAttachment (MpcNetworkNode1VolumeAttachment814B35A9) 
+MpcStandaloneStack | 30/34 | 4:11:52 PM | CREATE_IN_PROGRESS   | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node2VolumeAttachment (MpcNetworkNode2VolumeAttachmentE85E905D) 
+MpcStandaloneStack | 30/34 | 4:11:52 PM | CREATE_IN_PROGRESS   | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node0VolumeAttachment (MpcNetworkNode0VolumeAttachment742C2487) 
+MpcStandaloneStack | 30/34 | 4:11:54 PM | CREATE_IN_PROGRESS   | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node1VolumeAttachment (MpcNetworkNode1VolumeAttachment814B35A9) Resource creation Initiated
+MpcStandaloneStack | 30/34 | 4:11:54 PM | CREATE_IN_PROGRESS   | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node2VolumeAttachment (MpcNetworkNode2VolumeAttachmentE85E905D) Resource creation Initiated
+MpcStandaloneStack | 30/34 | 4:11:54 PM | CREATE_IN_PROGRESS   | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node0VolumeAttachment (MpcNetworkNode0VolumeAttachment742C2487) Resource creation Initiated
+MpcStandaloneStack | 30/34 | 4:11:54 PM | CREATE_IN_PROGRESS   | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node2VolumeAttachment (MpcNetworkNode2VolumeAttachmentE85E905D) Eventual consistency check initiated
+MpcStandaloneStack | 30/34 | 4:11:54 PM | CREATE_IN_PROGRESS   | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node0VolumeAttachment (MpcNetworkNode0VolumeAttachment742C2487) Eventual consistency check initiated
+MpcStandaloneStack | 30/34 | 4:11:55 PM | CREATE_IN_PROGRESS   | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node1VolumeAttachment (MpcNetworkNode1VolumeAttachment814B35A9) Eventual consistency check initiated
+MpcStandaloneStack | 30/34 | 4:11:55 PM | CREATE_IN_PROGRESS   | AWS::CloudFormation::Stack                 | MpcStandaloneStack Eventual consistency check initiated
+MpcStandaloneStack | 31/34 | 4:12:00 PM | CREATE_COMPLETE      | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node2VolumeAttachment (MpcNetworkNode2VolumeAttachmentE85E905D) 
+MpcStandaloneStack | 32/34 | 4:12:00 PM | CREATE_COMPLETE      | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node1VolumeAttachment (MpcNetworkNode1VolumeAttachment814B35A9) 
+MpcStandaloneStack | 33/34 | 4:12:00 PM | CREATE_COMPLETE      | AWS::EC2::VolumeAttachment                 | MpcNetwork/Node0VolumeAttachment (MpcNetworkNode0VolumeAttachment742C2487) 
+MpcStandaloneStack | 34/34 | 4:12:02 PM | CREATE_COMPLETE      | AWS::CloudFormation::Stack                 | MpcStandaloneStack 
+
+ ✅  MpcStandaloneStack
+
+✨  Deployment time: 191.77s
+
+Outputs:
+MpcStandaloneStack.MpcNetworkId = arn:aws:cloudformation:us-east-1:311843862895:stack/MpcStandaloneStack/998d6e00-d21e-11f0-a8fb-0e0d7ba0bdc9
+MpcStandaloneStack.MpcNetworkMpcNamespaceIdCCC75491 = ns-zus2vec6uny7h3wj
+MpcStandaloneStack.MpcNetworkNode0InstanceId6287DE88 = i-0e435ccedf4525a51
+MpcStandaloneStack.MpcNetworkNode1InstanceId28D9BF24 = i-0c80dabd224522ab7
+MpcStandaloneStack.MpcNetworkNode2InstanceId13A310A7 = i-098a46a347af36637
+MpcStandaloneStack.VpcId = vpc-0ad7ab6659e0293ae
+Stack ARN:
+arn:aws:cloudformation:us-east-1:311843862895:stack/MpcStandaloneStack/998d6e00-d21e-11f0-a8fb-0e0d7ba0bdc9
+
+✨  Total time: 195.32s
+
+
+NOTICES         (What's this? https://github.com/aws/aws-cdk/wiki/CLI-Notices)
+
+34892	CDK CLI will collect telemetry data on command usage starting at version 2.1100.0 (unless opted out)
+
+	Overview: We do not collect customer content and we anonymize the
+	          telemetry we do collect. See the attached issue for more
+	          information on what data is collected, why, and how to
+	          opt-out. Telemetry will NOT be collected for any CDK CLI
+	          version prior to version 2.1100.0 - regardless of
+	          opt-in/out. You can also preview the telemetry we will start
+	          collecting by logging it to a local file, by adding
+	          `--unstable=telemetry --telemetry-file=my/local/file` to any
+	          `cdk` command.
+
+	Affected versions: cli: ^2.0.0
+
+	More information at: https://github.com/aws/aws-cdk/issues/34892
+
+
+If you don’t want to see a notice anymore, use "cdk acknowledge <id>". For example, "cdk acknowledge 34892".
+   \033[0;32m✅ Stack deployed\033[0m
+
+[5/5] Populating AWS Secrets Manager...
+=== Updating AWS Secrets Manager ===
+Keys file: ./mpc-node-keys.json
+AWS profile: shai-sandbox-profile
+
+Updating secrets for 3 nodes...
+
+Updating secrets for node-0...
+  - Updating mpc-node-0-mpc_account_sk...
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:311843862895:secret:mpc-node-0-mpc_account_sk-EG7rES",
+    "Name": "mpc-node-0-mpc_account_sk",
+    "VersionId": "cfa2d83e-643b-47f2-a440-987a71e3b0d3",
+    "VersionStages": [
+        "AWSCURRENT"
+    ]
+}
+  - Updating mpc-node-0-mpc_p2p_private_key...
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:311843862895:secret:mpc-node-0-mpc_p2p_private_key-YRyMDr",
+    "Name": "mpc-node-0-mpc_p2p_private_key",
+    "VersionId": "541cff63-8f3c-48b6-a037-7a01edec6331",
+    "VersionStages": [
+        "AWSCURRENT"
+    ]
+}
+  - Updating mpc-node-0-mpc_secret_store_key...
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:311843862895:secret:mpc-node-0-mpc_secret_store_key-NwABlI",
+    "Name": "mpc-node-0-mpc_secret_store_key",
+    "VersionId": "2ecfe343-ed58-4b47-8163-54302f76995b",
+    "VersionStages": [
+        "AWSCURRENT"
+    ]
+}
+  ✅ Done
+
+Updating secrets for node-1...
+  - Updating mpc-node-1-mpc_account_sk...
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:311843862895:secret:mpc-node-1-mpc_account_sk-gi96uD",
+    "Name": "mpc-node-1-mpc_account_sk",
+    "VersionId": "4f48bd3a-0cf5-4b77-8f5d-7d36a7a62115",
+    "VersionStages": [
+        "AWSCURRENT"
+    ]
+}
+  - Updating mpc-node-1-mpc_p2p_private_key...
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:311843862895:secret:mpc-node-1-mpc_p2p_private_key-c7pGEB",
+    "Name": "mpc-node-1-mpc_p2p_private_key",
+    "VersionId": "44af906c-a324-423d-a10a-a3bd0a379c31",
+    "VersionStages": [
+        "AWSCURRENT"
+    ]
+}
+  - Updating mpc-node-1-mpc_secret_store_key...
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:311843862895:secret:mpc-node-1-mpc_secret_store_key-fGLeWO",
+    "Name": "mpc-node-1-mpc_secret_store_key",
+    "VersionId": "bb419b55-04f5-4d7f-a871-7bcda555e305",
+    "VersionStages": [
+        "AWSCURRENT"
+    ]
+}
+  ✅ Done
+
+Updating secrets for node-2...
+  - Updating mpc-node-2-mpc_account_sk...
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:311843862895:secret:mpc-node-2-mpc_account_sk-1KTiFo",
+    "Name": "mpc-node-2-mpc_account_sk",
+    "VersionId": "1846aea8-7009-4272-9cb8-bd7e0436e420",
+    "VersionStages": [
+        "AWSCURRENT"
+    ]
+}
+  - Updating mpc-node-2-mpc_p2p_private_key...
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:311843862895:secret:mpc-node-2-mpc_p2p_private_key-2TPDTt",
+    "Name": "mpc-node-2-mpc_p2p_private_key",
+    "VersionId": "2f512761-460f-4c35-a3f4-5a4df2393aed",
+    "VersionStages": [
+        "AWSCURRENT"
+    ]
+}
+  - Updating mpc-node-2-mpc_secret_store_key...
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:311843862895:secret:mpc-node-2-mpc_secret_store_key-yXkMuu",
+    "Name": "mpc-node-2-mpc_secret_store_key",
+    "VersionId": "0b8fb943-a943-4210-b3be-9e41c566a8c3",
+    "VersionStages": [
+        "AWSCURRENT"
+    ]
+}
+  ✅ Done
+
+✅ All secrets updated successfully!
+
+You can now deploy the CDK stack:
+  export VPC_ID=<your-vpc-id>
+  npx cdk deploy --context vpcId=$VPC_ID --profile shai-sandbox-profile --require-approval never
+   \033[0;32m✅ Secrets populated\033[0m
+
+═══════════════════════════════════════════════════════════
+   \033[0;32m✅ Deployment Complete!\033[0m
+═══════════════════════════════════════════════════════════
+
+MPC services are starting. Monitor with:
+  aws ecs describe-services --cluster mpc-nodes --services node-0 node-1 node-2 \
+    --profile shai-sandbox-profile | jq '.services[] | {name: .serviceName, running: .runningCount}'
+
+View logs:
+  aws logs tail MpcStandaloneStack-MpcNetworkNode0TaskDefinitionNode0ContainerLogGroup* \
+    --follow --profile shai-sandbox-profile
+
+\033[1;33m⚠️  Note: Tasks may take 2-5 minutes to start and become healthy\033[0m
+

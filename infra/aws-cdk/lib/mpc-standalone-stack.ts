@@ -15,10 +15,8 @@ export interface MpcStandaloneStackProps extends cdk.StackProps {
   vpcId?: string;
   /** Number of MPC nodes (default: 3) */
   nodeCount?: number;
-  /** Optional pre-built Docker image URI (skips managed build) */
+  /** Docker image URI (defaults to Docker Hub image matching GCP production) */
   dockerImageUri?: string;
-  /** Image tag to use when building via CodeBuild (default: "latest") */
-  imageTag?: string;
   /** CPU units per node (default: 512 = 0.5 vCPU) */
   cpu?: number;
   /** Memory per node in MB (default: 1024 = 1 GB) */
@@ -43,7 +41,6 @@ export class MpcStandaloneStack extends cdk.Stack {
       vpcId: propsVpcId,
       nodeCount = 3,
       dockerImageUri,
-      imageTag,
       cpu,
       memory,
       importFromStack = false,
@@ -127,7 +124,6 @@ export class MpcStandaloneStack extends cdk.Stack {
       mpcContractId,
       nodeConfigs,
       dockerImageUri,
-      imageTag,
       cpu,
       memory,
     };

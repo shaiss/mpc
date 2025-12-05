@@ -2,19 +2,37 @@
 
 This directory contains an AWS CDK implementation for deploying NEAR MPC (Multi-Party Computation) nodes on AWS using ECS Fargate, EFS, and AWS Secrets Manager.
 
+## Quick Start
+
+**For a complete deployment with auto-configuration from your AWSNodeRunner setup:**
+
+```bash
+# 1. Copy and edit configuration
+cp config.example.json config.local.json
+# Edit config.local.json with your VPC ID and NEAR RPC IP from AWSNodeRunner
+
+# 2. Deploy everything
+./generate-and-deploy.sh
+```
+
+See [QUICKSTART.md](./QUICKSTART.md) for detailed instructions.
+
 ## Architecture
 
 - **Compute**: Amazon ECS on AWS Fargate (serverless, no EC2 management)
 - **Storage**: Amazon EFS with dedicated access points per node
-- **Secrets**: AWS Secrets Manager for node keys (encrypted with KMS)
+- **Secrets**: AWS Secrets Manager for node keys (auto-generated for sandbox)
 - **Networking**: AWS Cloud Map for service discovery (private DNS)
 - **Service Architecture**: 3 distinct ECS Services (one per MPC node) for static peer addressing
+- **Integration**: Works with AWSNodeRunner NEAR localnet deployment
 
 ## Prerequisites
 
 - AWS CLI configured with appropriate credentials
 - Node.js 18+ and npm
 - AWS CDK CLI (`npm install -g aws-cdk`)
+- `jq` for JSON processing (used by deployment scripts)
+- AWSNodeRunner stack deployed (provides NEAR localnet)
 
 ## Local Development Setup
 

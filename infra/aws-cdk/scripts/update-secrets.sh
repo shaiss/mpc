@@ -39,27 +39,27 @@ for i in $(seq 0 $((NODE_COUNT - 1))); do
     P2P_KEY=$(jq -r ".\"node-$i\".MPC_P2P_PRIVATE_KEY" "$KEYS_FILE")
     SECRET_STORE_KEY=$(jq -r ".\"node-$i\".MPC_SECRET_STORE_KEY" "$KEYS_FILE")
     
-    # Update MPC_ACCOUNT_SK
+    # Update MPC_ACCOUNT_SK (plain string, not JSON)
     echo "  - Updating mpc-node-$i-mpc_account_sk..."
     aws secretsmanager put-secret-value \
         --secret-id "mpc-node-$i-mpc_account_sk" \
-        --secret-string "{\"key\":\"$ACCOUNT_SK\"}" \
+        --secret-string "$ACCOUNT_SK" \
         --profile "$AWS_PROFILE" \
         --region us-east-1 || echo "    (Secret may not exist yet - will be created on stack deployment)"
     
-    # Update MPC_P2P_PRIVATE_KEY
+    # Update MPC_P2P_PRIVATE_KEY (plain string, not JSON)
     echo "  - Updating mpc-node-$i-mpc_p2p_private_key..."
     aws secretsmanager put-secret-value \
         --secret-id "mpc-node-$i-mpc_p2p_private_key" \
-        --secret-string "{\"key\":\"$P2P_KEY\"}" \
+        --secret-string "$P2P_KEY" \
         --profile "$AWS_PROFILE" \
         --region us-east-1 || echo "    (Secret may not exist yet - will be created on stack deployment)"
     
-    # Update MPC_SECRET_STORE_KEY
+    # Update MPC_SECRET_STORE_KEY (plain string, not JSON)
     echo "  - Updating mpc-node-$i-mpc_secret_store_key..."
     aws secretsmanager put-secret-value \
         --secret-id "mpc-node-$i-mpc_secret_store_key" \
-        --secret-string "{\"key\":\"$SECRET_STORE_KEY\"}" \
+        --secret-string "$SECRET_STORE_KEY" \
         --profile "$AWS_PROFILE" \
         --region us-east-1 || echo "    (Secret may not exist yet - will be created on stack deployment)"
     

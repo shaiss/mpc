@@ -1,0 +1,29 @@
+{
+  "comment": "Copy this to config.local.json and update with your values from AWSNodeRunner deployment",
+  "aws": {
+    "profile": "shai-sandbox-profile",
+    "region": "us-east-1",
+    "account": "311843862895"
+  },
+  "near": {
+    "vpcId": "vpc-0ad7ab6659e0293ae",
+    "rpcIp": "10.0.5.132",
+    "rpcPort": 3030,
+    "p2pPort": 24567,
+    "networkId": "mpc-localnet"
+  },
+  "mpc": {
+    "nodeCount": 3,
+    "contractId": "v1.signer.node0",
+    "dockerImage": "nearone/mpc-node-gcp:testnet-release",
+    "cpu": 512,
+    "memory": 1024,
+    "autoGenerateKeys": true
+  },
+  "instructions": {
+    "getVpcId": "aws cloudformation describe-stacks --stack-name near-localnet-common --query 'Stacks[0].Outputs[?OutputKey==`VpcId`].OutputValue' --output text",
+    "getRpcIp": "aws cloudformation describe-stacks --stack-name near-localnet-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`nearinstanceprivateip`].OutputValue' --output text",
+    "getBootNodes": "aws ssm send-command --instance-ids $(aws cloudformation describe-stacks --stack-name near-localnet-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`nearinstanceid`].OutputValue' --output text) --document-name AWS-RunShellScript --parameters 'commands=[\"curl -s http://localhost:3030/status | jq -r .node_key\"]'"
+  }
+}
+
