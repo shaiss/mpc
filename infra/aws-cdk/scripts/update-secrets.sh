@@ -37,7 +37,8 @@ for i in $(seq 0 $((NODE_COUNT - 1))); do
     # Extract keys from JSON
     ACCOUNT_SK=$(jq -r ".\"node-$i\".MPC_ACCOUNT_SK" "$KEYS_FILE")
     P2P_KEY=$(jq -r ".\"node-$i\".MPC_P2P_PRIVATE_KEY" "$KEYS_FILE")
-    SECRET_STORE_KEY=$(jq -r ".\"node-$i\".MPC_SECRET_STORE_KEY" "$KEYS_FILE")
+    # SECRET_STORE_KEY must be 32 hex chars, so we strip 'ed25519:' prefix if present
+    SECRET_STORE_KEY=$(jq -r ".\"node-$i\".MPC_SECRET_STORE_KEY" "$KEYS_FILE" | sed 's/^ed25519://')
     
     # Update MPC_ACCOUNT_SK (plain string, not JSON)
     echo "  - Updating mpc-node-$i-mpc_account_sk..."

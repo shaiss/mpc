@@ -7,14 +7,14 @@
   },
   "near": {
     "vpcId": "vpc-0ad7ab6659e0293ae",
-    "rpcIp": "10.0.5.132",
+    "rpcIp": "10.0.55.70",
     "rpcPort": 3030,
     "p2pPort": 24567,
     "networkId": "mpc-localnet"
   },
   "mpc": {
     "nodeCount": 3,
-    "contractId": "v1.signer.node0",
+    "contractId": "mpc-node-0.node0",
     "dockerImage": "nearone/mpc-node-gcp:testnet-release",
     "cpu": 512,
     "memory": 1024,
