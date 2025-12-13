@@ -257,10 +257,24 @@ export class MpcNetwork extends constructs.Construct {
     });
 
     for (let i = 0; i < this.instances.length; i++) {
+      const nodeConfig = nodeConfigs[i];
+      
       new cdk.CfnOutput(this, `Node${i}InstanceId`, {
         value: this.instances[i].instanceId,
         exportName: `MpcNode${i}InstanceId`,
         description: `EC2 Instance ID for MPC Node ${i}`,
+      });
+
+      new cdk.CfnOutput(this, `Node${i}PrivateIp`, {
+        value: this.instances[i].instancePrivateIp,
+        exportName: `MpcNode${i}PrivateIp`,
+        description: `Private IP address for MPC Node ${i}`,
+      });
+
+      new cdk.CfnOutput(this, `Node${i}AccountId`, {
+        value: nodeConfig.accountId,
+        exportName: `MpcNode${i}AccountId`,
+        description: `NEAR account ID for MPC Node ${i}`,
       });
     }
   }
