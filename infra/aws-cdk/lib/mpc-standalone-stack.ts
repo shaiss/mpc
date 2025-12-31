@@ -176,7 +176,9 @@ export class MpcStandaloneStack extends cdk.Stack {
     const nodeConfigs: MpcNodeConfig[] = [];
     for (let i = 0; i < nodeCount; i++) {
       nodeConfigs.push({
-        accountId: `mpc-node-${i}.${nearNetworkId === "localnet" ? "node0" : nearNetworkId}`,
+        // For localnet, the root/registrar account is `localnet` (not `node0`),
+        // so MPC participant accounts must be created under `.localnet`.
+        accountId: `mpc-node-${i}.${nearNetworkId === "localnet" ? "localnet" : nearNetworkId}`,
         localAddress: `node-${i}.mpc.local`,
         responderId: undefined, // Will default to accountId
       });
