@@ -132,6 +132,12 @@ export class MpcNetwork extends constructs.Construct {
         ec2.Port.tcp(24567), // NEAR P2P
         `Allow NEAR P2P from NEAR Base (${nearRpcHost})`
       );
+      // Allow NEAR base to probe MPC node health endpoint (used by in-VPC validation).
+      mpcSecurityGroup.addIngressRule(
+        ec2.Peer.ipv4(`${nearRpcHost}/32`),
+        ec2.Port.tcp(8080), // MPC Web UI /health
+        `Allow MPC Web UI from NEAR Base (${nearRpcHost})`
+      );
     } else {
       mpcSecurityGroup.addIngressRule(
         mpcSecurityGroup,
@@ -458,11 +464,13 @@ wait_for_real_secret() {
       echo "$val"
       return 0
     fi
-    echo "⏳ Waiting for $name secret to be populated..."
+    # IMPORTANT: progress logs must go to stderr, otherwise they get captured into the secret value
+    # and we end up writing invalid keys into /data/secrets.json.
+    echo "⏳ Waiting for $name secret to be populated..." >&2
     sleep 10
   done
 
-  echo "ERROR: Timed out waiting for $name secret to be populated"
+  echo "ERROR: Timed out waiting for $name secret to be populated" >&2
   exit 1
 }
 
@@ -475,6 +483,16 @@ MPC_ACCOUNT_SK="$(echo "$MPC_ACCOUNT_SK" | tr -d '\n')"
 MPC_P2P_PRIVATE_KEY="$(echo "$MPC_P2P_PRIVATE_KEY" | tr -d '\n')"
 MPC_SECRET_STORE_KEY="$(echo "$MPC_SECRET_STORE_KEY" | tr -d '\n')"
 export MPC_ACCOUNT_SK MPC_P2P_PRIVATE_KEY MPC_SECRET_STORE_KEY
+
+# Fail fast if secrets are malformed (prevents crash loops with opaque errors).
+if ! echo "$MPC_ACCOUNT_SK" | grep -q '^ed25519:'; then
+  echo "ERROR: MPC_ACCOUNT_SK must start with 'ed25519:'" >&2
+  exit 1
+fi
+if ! echo "$MPC_P2P_PRIVATE_KEY" | grep -q '^ed25519:'; then
+  echo "ERROR: MPC_P2P_PRIVATE_KEY must start with 'ed25519:'" >&2
+  exit 1
+fi
 
 # Ensure MPC config.yaml exists (mpc-node reads it directly; /app/start.sh would otherwise generate it).
 if [ ! -f ${dataDir}/config.yaml ]; then
@@ -567,6 +585,14 @@ if [ -n "$GENESIS_S3_URL" ]; then
     if ! grep -q '\"store\"' ${dataDir}/config.json; then NEED_NEAR_INIT="true"; fi
     if ! grep -q '\"rpc\"' ${dataDir}/config.json; then NEED_NEAR_INIT="true"; fi
     if ! grep -q '\"addr\"' ${dataDir}/config.json; then NEED_NEAR_INIT="true"; fi
+  fi
+
+  # If the NEAR base chain_id changes (e.g., NEAR base was redeployed), force init so config.json matches genesis.json.
+  GENESIS_CHAIN_ID="$(jq -r '.chain_id // empty' ${dataDir}/genesis.json 2>/dev/null || true)"
+  CONFIG_CHAIN_ID="$(jq -r '.chain_id // empty' ${dataDir}/config.json 2>/dev/null || true)"
+  if [ -n "$GENESIS_CHAIN_ID" ] && [ -n "$CONFIG_CHAIN_ID" ] && [ "$GENESIS_CHAIN_ID" != "$CONFIG_CHAIN_ID" ]; then
+    echo "⚠️  Detected chain_id mismatch (config=$CONFIG_CHAIN_ID genesis=$GENESIS_CHAIN_ID); forcing init" >&2
+    NEED_NEAR_INIT="true"
   fi
 
   if [ "$NEED_NEAR_INIT" = "true" ]; then
