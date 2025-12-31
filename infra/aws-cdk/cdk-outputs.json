@@ -1,0 +1,16 @@
+{
+  "MpcStandaloneStack": {
+    "MpcNetworkId": "arn:aws:cloudformation:us-east-1:311843862895:stack/MpcStandaloneStack/3e2d5970-e610-11f0-9157-0e8e05d41a51",
+    "MpcNetworkNode0InstanceId6287DE88": "i-08f5949d331daed70",
+    "MpcNetworkNode2InstanceId13A310A7": "i-01ebbcdd77381bd6c",
+    "MpcNetworkNode1PrivateIp7ABE17EB": "10.0.138.22",
+    "MpcNetworkNode1AccountIdE43DA0BE": "mpc-node-1.localnet",
+    "MpcNetworkNode2PrivateIp607E8201": "10.0.154.241",
+    "VpcId": "vpc-04e3c6548301d9175",
+    "MpcNetworkNode0PrivateIp3FA9C84E": "10.0.170.92",
+    "MpcNetworkMpcNamespaceIdCCC75491": "ns-zus2vec6uny7h3wj",
+    "MpcNetworkNode2AccountId6338D15E": "mpc-node-2.localnet",
+    "MpcNetworkNode0AccountIdDA209BBE": "mpc-node-0.localnet",
+    "MpcNetworkNode1InstanceId28D9BF24": "i-00b05bb6574febb77"
+  }
+}

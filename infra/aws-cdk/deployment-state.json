@@ -1,0 +1,59 @@
+{
+  "layers": {
+    "near_base": {
+      "layer_name": "near_base",
+      "deployed": true,
+      "outputs": {
+        "rpc_url": "http://10.0.44.18:3030",
+        "network_id": "localnet",
+        "instance_id": "i-0b2ea52c4eda30139",
+        "private_ip": "10.0.44.18",
+        "rpc_ip": "10.0.44.18",
+        "vpc_id": "vpc-04e3c6548301d9175",
+        "security_group_id": "sg-0a41e275b515fcf1a",
+        "node_type": "m7a.2xlarge",
+        "near_version": "2.10.1"
+      },
+      "timestamp": "2025-12-31T14:45:58.233Z"
+    },
+    "ethereum_localnet": {
+      "layer_name": "ethereum_localnet",
+      "deployed": true,
+      "outputs": {
+        "deployed": "true",
+        "deploy_timestamp": "2025-12-31T14:45:59.840Z",
+        "eth_rpc_url": "",
+        "eth_instance_id": "",
+        "eth_private_ip": "",
+        "eth_chain_id": "1337"
+      },
+      "timestamp": "2025-12-31T14:45:59.840Z"
+    },
+    "near_services": {
+      "layer_name": "near_services",
+      "deployed": true,
+      "outputs": {
+        "faucet_endpoint": "",
+        "faucet_lambda_arn": "arn:aws:lambda:us-east-1:311843862895:function:near-localnet-faucet-v5-FaucetFunction0A265281-JkpKIRX8ufqZ",
+        "faucet_function_name": "near-localnet-faucet-v5-FaucetFunction0A265281-JkpKIRX8ufqZ",
+        "deployed": "true"
+      },
+      "timestamp": "2025-12-31T14:46:02.379Z"
+    },
+    "chain_signatures": {
+      "layer_name": "chain_signatures",
+      "deployed": true,
+      "outputs": {
+        "deployed": "true",
+        "deploy_timestamp": "2025-12-31T14:46:20.802Z",
+        "v1_signer_contract_id": "v1.signer.localnet",
+        "mpc_node_count": "3",
+        "near_rpc_url": "http://10.0.44.18:3030",
+        "chain_signatures_config": "{\"rpcUrl\":\"http://10.0.44.18:3030\",\"mpcContractId\":\"v1.signer.localnet\",\"mpcNodeCount\":\"3\"}"
+      },
+      "timestamp": "2025-12-31T14:46:20.802Z"
+    }
+  },
+  "timestamp": "2025-12-31T14:46:20.802Z",
+  "version": "1.0.0"
+}

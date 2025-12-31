@@ -1,0 +1,15 @@
+{"component":"Orchestrator:near_services","level":"info","message":"🚀 Starting: Destroying NEAR Services Layer","timestamp":"2025-12-31T06:19:51.617Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"Installing CDK dependencies in faucet/cdk","timestamp":"2025-12-31T06:19:51.617Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"🚀 Starting: Destroying NEAR Services Layer","timestamp":"2025-12-31T06:47:35.005Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"Installing CDK dependencies in faucet/cdk","timestamp":"2025-12-31T06:47:35.005Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"✅ NEAR Services Layer destroyed successfully","timestamp":"2025-12-31T07:07:32.210Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"🚀 Starting: Destroying NEAR Services Layer","timestamp":"2025-12-31T07:17:07.169Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"Installing CDK dependencies in faucet/cdk","timestamp":"2025-12-31T07:17:07.169Z"}
+{"component":"Orchestrator:near_services","error":"Command was killed with SIGTERM (Termination): npx cdk destroy --profile shai-sandbox-profile --region us-east-1 NearFaucetStack --force --require-approval never","level":"error","message":"NEAR Services Layer destruction failed","timestamp":"2025-12-31T07:23:51.859Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"🚀 Starting: Destroying NEAR Services Layer","timestamp":"2025-12-31T07:45:16.845Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"Installing CDK dependencies in faucet/cdk","timestamp":"2025-12-31T07:45:16.845Z"}
+{"component":"Orchestrator:near_services","error":"Command was killed with SIGTERM (Termination): npx cdk destroy --profile shai-sandbox-profile --region us-east-1 NearFaucetStack --force --require-approval never","level":"error","message":"NEAR Services Layer destruction failed","timestamp":"2025-12-31T07:47:03.056Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"🚀 Starting: Destroying NEAR Services Layer","timestamp":"2025-12-31T13:58:14.072Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"Installing CDK dependencies in faucet/cdk","timestamp":"2025-12-31T13:58:14.072Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"🚀 Starting: Destroying NEAR Services Layer","timestamp":"2025-12-31T14:28:59.404Z"}
+{"component":"Orchestrator:near_services","level":"info","message":"Installing CDK dependencies in faucet/cdk","timestamp":"2025-12-31T14:28:59.404Z"}
