@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CONTAINER_NAME="mpc-node"
-IMAGE_NAME="nearone/mpc-node-gcp:testnet-release"
+IMAGE_NAME="${IMAGE_NAME:-nearone/mpc-node:3.1.0}"
 ENV_FILE=".env"
 VOLUME_PATH="/home/mpc/data:/data"
 

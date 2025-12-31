@@ -9,13 +9,26 @@ This rule provides context for the AWS CDK deployment of NEAR MPC nodes within t
 **Location**: `/Users/Shai.Perednik/Documents/code_workspace/near_mobile/cross-chain-simulator/cross-chain-simulator/mpc-repo/infra/aws-cdk`
 
 ## Architecture
-- **Goal**: Deploy 3 NEAR MPC nodes on AWS using ECS Fargate.
+
+### Critical Understanding: MPC Nodes are Indexers, Not a Separate Chain
+
+**IMPORTANT**: MPC nodes run NEAR nodes that **SYNC TO** the main NEAR blockchain (NEAR Base for localnet). They DO NOT run a separate blockchain.
+
+**Correct flow**:
+1. v1.signer contract is deployed on NEAR Base blockchain
+2. MPC nodes sync their NEAR nodes TO NEAR Base
+3. MPC nodes watch v1.signer contract ON NEAR Base
+4. Users call sign() ON NEAR Base
+5. MPC nodes detect via indexer and respond
+
+- **Goal**: Deploy 3 NEAR MPC nodes on AWS that sync to and index NEAR Base blockchain.
 - **Components**:
     - **Compute**: Amazon ECS on Fargate. 3 separate Services (`node-0`, `node-1`, `node-2`) to maintain stable identity and addressing.
     - **Networking**: AWS Cloud Map (Service Discovery) for stable DNS (`node-0.mpc-nodes-v1.local`).
     - **Storage**: Amazon EFS with 3 Access Points (one per node) mounted to `/data`.
     - **Secrets**: AWS Secrets Manager. Individual secrets for `MPC_ACCOUNT_SK`, `MPC_P2P_PRIVATE_KEY`, `MPC_CIPHER_PK`, `MPC_SIGN_SK`, `MPC_SECRET_STORE_KEY`.
     - **Image**: `nearone/mpc-node-gcp:testnet-release`.
+    - **NEAR Sync**: MPC nodes MUST sync to NEAR Base (10.0.55.70:3030), NOT run standalone
 
 ## Current Status
 - **Stack Name**: `MpcStandaloneStack`.

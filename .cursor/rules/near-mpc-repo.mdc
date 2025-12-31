@@ -14,15 +14,22 @@ MPC nodes implement secure multi-party threshold signature generation for NEAR's
 
 ## Key Architecture Components
 
-### 1. NEAR Indexer
-- Tracks the shard where the signing smart contract (`v1.signer`) is deployed
-- Monitors successful calls to the `sign` function
+### 1. NEAR Indexer (CRITICAL: MPC Nodes Sync to Main Blockchain)
+- **Each MPC node runs a NEAR node in INDEXER mode**
+- **Syncs TO the main NEAR blockchain** (mainnet/testnet/NEAR Base for localnet)
+- **Tracks the shard where v1.signer contract is deployed** (on the main blockchain)
+- **Monitors successful calls to the `sign` function** (on the main blockchain)
 - Maps requests to leader nodes for signature generation
+
+**IMPORTANT**: MPC nodes DO NOT run a separate blockchain. They run NEAR nodes that sync to and index the main NEAR blockchain where v1.signer is deployed.
+
+**Heights must match**: If NEAR Base is at height 10,000, MPC nodes should also be at ~10,000 (syncing to same chain).
 
 ### 2. MPC Signing (cait-sith protocol)
 - **Beaver Triple Generation**: Background process generating cryptographic building blocks (target: 1M triples)
 - **Presignature Generation**: Uses two Beaver triples
 - **Signature Generation**: Fast final step using presignatures
+- **Signature Submission**: Submitted back to v1.signer contract on the main blockchain
 
 ## Directory Structure
 

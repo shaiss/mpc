@@ -1,33 +1,45 @@
 #!/bin/bash
-# Script to redeploy MPC nodes with updated configuration
-# Run this after updating config.local.json
+set -euo pipefail
 
-set -e
+# Redeploy MPC nodes with updated configuration.
+# Uses config.local.json as the source of truth.
 
-PROFILE="shai-sandbox-profile"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+PROFILE="$(jq -r '.aws.profile // "shai-sandbox-profile"' config.local.json)"
+NODE_COUNT="$(jq -r '.mpc.nodeCount // 3' config.local.json)"
 
 echo "🔄 Redeploying MPC nodes..."
+echo "  Profile: $PROFILE"
+echo "  Nodes:   $NODE_COUNT"
+echo ""
 
-# Step 1: Destroy old MPC stack
-echo "🗑️  Destroying old MPC stack..."
-npx cdk destroy --profile "$PROFILE" --force 2>&1 | tee /tmp/mpc-destroy.log
-
-echo "✅ Old stack destroyed"
-
-# Step 2: Clean up old deployment artifacts
-echo "🧹 Cleaning up..."
+echo "🧹 Cleaning up local key artifacts..."
 rm -f mpc-node-keys.json 2>/dev/null || true
 
-# Step 3: Run generate-and-deploy script
-echo "🚀 Deploying new MPC stack..."
-./generate-and-deploy.sh 2>&1 | tee /tmp/mpc-deploy.log
+echo "🔐 Generating fresh test keys..."
+chmod +x ./scripts/generate-test-keys.sh ./scripts/update-secrets.sh
+./scripts/generate-test-keys.sh "$NODE_COUNT"
+
+echo "📦 Building CDK project..."
+npm run build
+
+echo "🗑️  Destroying old MPC stack (if present)..."
+npx cdk destroy MpcStandaloneStack --profile "$PROFILE" --force || true
+
+echo "🚀 Deploying MPC stack..."
+npx cdk deploy MpcStandaloneStack --profile "$PROFILE" --require-approval never
+
+echo "🔑 Populating Secrets Manager with generated keys..."
+./scripts/update-secrets.sh ./mpc-node-keys.json "$PROFILE"
 
 echo ""
 echo "=========================================="
-echo "✅ MPC Redeployment Complete!"
+echo "✅ MPC Redeployment Complete"
 echo "=========================================="
 echo ""
-echo "📋 Next steps:"
-echo "   1. Set up NEAR chain state (accounts and contract)"
-echo "   2. Verify MPC nodes can sync with NEAR"
+echo "Next:"
+echo "  - Watch MPC logs on the instances (SSM → docker logs mpc-node)"
+echo "  - Verify embedded NEAR sync: curl http://localhost:3030/status"
 
