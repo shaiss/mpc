@@ -4,6 +4,7 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as servicediscovery from "aws-cdk-lib/aws-servicediscovery";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as s3 from "aws-cdk-lib/aws-s3";
 
 export interface MpcNodeConfig {
   /** NEAR account ID for this MPC node (e.g., "mpc-node-0.localnet") */
@@ -19,11 +20,17 @@ export interface MpcNetworkProps {
   vpc: ec2.IVpc;
   /** NEAR RPC URL (e.g., "http://10.0.1.100:3030") */
   nearRpcUrl: string;
-  /** NEAR network ID (e.g., "localnet", "testnet", "mainnet") */
+  /** NEAR network id for the chain the MPC indexer follows (e.g., "localnet", "testnet", "mainnet") */
   nearNetworkId: string;
+  /** MPC container environment selector (for the MPC image `start.sh`). For localnet this must be "mpc-localnet". */
+  mpcEnv: string;
   /** NEAR boot nodes (comma-separated list) */
   nearBootNodes: string;
-  /** MPC contract ID (e.g., "v1.signer.node0" for localnet) */
+  /** NEAR genesis file content (base64 encoded) for localnet */
+  nearGenesis?: string;
+  /** S3 URL for genesis file (if uploaded as asset) */
+  genesisS3Url?: string;
+  /** MPC contract ID (e.g., "v1.signer.localnet" for localnet") */
   mpcContractId: string;
   /** Configuration for each MPC node */
   nodeConfigs: MpcNodeConfig[];
@@ -47,6 +54,8 @@ export class MpcNetwork extends constructs.Construct {
   public readonly namespace: servicediscovery.INamespace;
   public readonly instances: ec2.Instance[];
   public readonly secrets: secretsmanager.ISecret[];
+  public readonly genesisBucket?: s3.IBucket;
+  public readonly genesisS3Key?: string;
   private readonly nodeSecrets: Map<number, { [key: string]: secretsmanager.ISecret }> = new Map();
 
   constructor(scope: constructs.Construct, id: string, props: MpcNetworkProps) {
@@ -56,22 +65,29 @@ export class MpcNetwork extends constructs.Construct {
       vpc,
       nearRpcUrl,
       nearNetworkId,
+      mpcEnv,
       nearBootNodes,
+      nearGenesis,
+      genesisS3Url: propsGenesisS3Url,
       mpcContractId,
       nodeConfigs,
       dockerImageUri,
       instanceType = ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MEDIUM),
       ebsVolumeSize = 100,
       namespaceName = "mpc.local",
-      autoGenerateKeys = nearNetworkId === "localnet" || nearNetworkId === "mpc-localnet",
+      autoGenerateKeys = nearNetworkId === "localnet",
     } = props;
 
     // Default to Docker Hub image matching GCP production setup
     // Users can override via dockerImageUri prop or context/env var
-    const defaultImageUri = nearNetworkId === "testnet" || nearNetworkId === "mainnet"
-      ? "docker.io/nearone/mpc-node-gcp:testnet-release"
-      : "docker.io/nearone/mpc-node-gcp:testnet-release"; // Default to testnet-release for now
+    const defaultImageUri =
+      nearNetworkId === "testnet" || nearNetworkId === "mainnet"
+        ? "docker.io/nearone/mpc-node-gcp:testnet-release"
+        : "docker.io/nearone/mpc-node:3.1.0";
     const imageUri = dockerImageUri || defaultImageUri;
+
+    // 0. Use S3 URL for genesis if provided by parent stack
+    const genesisS3Url = propsGenesisS3Url;
 
     // 1. Create Cloud Map Namespace for service discovery (must be created before cluster)
     // Use a unique namespace name to avoid conflicts with existing hosted zones
@@ -91,6 +107,14 @@ export class MpcNetwork extends constructs.Construct {
       allowAllOutbound: true,
     });
 
+    // Connected Localnet: prefer MPC nodes to peer with NEAR Base (not with each other), otherwise
+    // state sync can pick an unsynced MPC peer and hang forever in the "State ...[0: header]" loop.
+    const nearRpcHost = nearRpcUrl
+      .replace(/^https?:\/\//, "")
+      .split("/")[0]
+      .split(":")[0];
+    const nearRpcHostIsIpv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(nearRpcHost);
+
     // Allow MPC nodes to communicate with each other
     mpcSecurityGroup.addIngressRule(
       mpcSecurityGroup,
@@ -102,11 +126,19 @@ export class MpcNetwork extends constructs.Construct {
       ec2.Port.tcp(8080), // MPC Web UI
       "Allow MPC Web UI access"
     );
-    mpcSecurityGroup.addIngressRule(
-      mpcSecurityGroup,
-      ec2.Port.tcp(24567), // NEAR P2P
-      "Allow NEAR P2P between MPC nodes"
-    );
+    if (nearNetworkId === "localnet" && nearRpcHostIsIpv4) {
+      mpcSecurityGroup.addIngressRule(
+        ec2.Peer.ipv4(`${nearRpcHost}/32`),
+        ec2.Port.tcp(24567), // NEAR P2P
+        `Allow NEAR P2P from NEAR Base (${nearRpcHost})`
+      );
+    } else {
+      mpcSecurityGroup.addIngressRule(
+        mpcSecurityGroup,
+        ec2.Port.tcp(24567), // NEAR P2P
+        "Allow NEAR P2P between MPC nodes"
+      );
+    }
 
     // 4. Create Secrets Manager secrets for each node
     // We create individual secrets for required keys
@@ -156,6 +188,17 @@ export class MpcNetwork extends constructs.Construct {
     for (const secret of this.secrets) {
       secret.grantRead(instanceRole);
     }
+    
+    // Grant S3 access if genesis is in S3
+    if (genesisS3Url) {
+      instanceRole.addToPolicy(
+        new iam.PolicyStatement({
+          actions: ["s3:GetObject"],
+          resources: ["arn:aws:s3:::cdk-*/*"],  // CDK asset bucket pattern
+        })
+      );
+      console.log("✅ Granted S3 read permissions for genesis download");
+    }
 
     // Grant instance role permission to register with Cloud Map
     instanceRole.addToPolicy(
@@ -196,8 +239,11 @@ export class MpcNetwork extends constructs.Construct {
         imageUri,
         mpcContractId,
         nearNetworkId,
+        mpcEnv,
         nearRpcUrl,
         nearBootNodes,
+        nearGenesis,
+        genesisS3Url,
         nodeSecretsMap,
         namespaceId: this.namespace.namespaceId,
       });
@@ -211,6 +257,7 @@ export class MpcNetwork extends constructs.Construct {
         }),
         vpcSubnets: {
           subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+          // subnetType: ec2.SubnetType.PUBLIC, // DEBUG: use public subnet for now to rule out NAT issues
         },
         securityGroup: mpcSecurityGroup,
         role: instanceRole,
@@ -294,8 +341,11 @@ export class MpcNetwork extends constructs.Construct {
     imageUri: string;
     mpcContractId: string;
     nearNetworkId: string;
+    mpcEnv: string;
     nearRpcUrl: string;
     nearBootNodes: string;
+    nearGenesis?: string;
+    genesisS3Url?: string;
     nodeSecretsMap: { [key: string]: secretsmanager.ISecret };
     namespaceId: string;
   }): string {
@@ -305,8 +355,11 @@ export class MpcNetwork extends constructs.Construct {
       imageUri,
       mpcContractId,
       nearNetworkId,
+      mpcEnv,
       nearRpcUrl,
       nearBootNodes,
+      nearGenesis,
+      genesisS3Url,
       nodeSecretsMap,
       namespaceId,
     } = params;
@@ -319,12 +372,17 @@ export class MpcNetwork extends constructs.Construct {
     const p2pKeySecretArn = nodeSecretsMap.MPC_P2P_PRIVATE_KEY.secretArn;
     const secretStoreKeySecretArn = nodeSecretsMap.MPC_SECRET_STORE_KEY.secretArn;
 
+    // Genesis file is too large for UserData (>25KB limit)
+    // For Connected Localnet mode, we'll use boot nodes to sync to NEAR Base
+    // and rely on NEAR's state sync instead of embedding full genesis
+    const genesisContent = "";  // Don't embed genesis in UserData
+
     return `#!/bin/bash
-set -exo pipefail
+    set -exo pipefail
 
 # Install Docker
 yum update -y
-yum install -y docker
+yum install -y docker jq
 systemctl start docker
 systemctl enable docker
 usermod -a -G docker ec2-user
@@ -382,35 +440,204 @@ if ! grep -q "$UUID" /etc/fstab; then
   echo "UUID=$UUID ${dataDir} ext4 discard,defaults,nofail 0 2" >> /etc/fstab
 fi
 
-# Fetch secrets from Secrets Manager
-export MPC_ACCOUNT_SK=$(aws secretsmanager get-secret-value --secret-id ${accountSkSecretArn} --region ${region} --query SecretString --output text)
-export MPC_P2P_PRIVATE_KEY=$(aws secretsmanager get-secret-value --secret-id ${p2pKeySecretArn} --region ${region} --query SecretString --output text)
-export MPC_SECRET_STORE_KEY=$(aws secretsmanager get-secret-value --secret-id ${secretStoreKeySecretArn} --region ${region} --query SecretString --output text)
+# Fetch secrets from Secrets Manager.
+# IMPORTANT: Secrets are created with placeholder values during stack creation and then populated later.
+# We wait until the placeholder is replaced so first-boot doesn't permanently bake bad env vars into the container.
+fetch_secret() {
+  aws secretsmanager get-secret-value --secret-id "$1" --region ${region} --query SecretString --output text
+}
+
+wait_for_real_secret() {
+  local name="$1"
+  local arn="$2"
+  local val=""
+
+  for attempt in $(seq 1 60); do
+    val="$(fetch_secret "$arn" 2>/dev/null || true)"
+    if [ -n "$val" ] && [ "$val" != "PLACEHOLDER_REPLACE_WITH_REAL_KEY" ]; then
+      echo "$val"
+      return 0
+    fi
+    echo "⏳ Waiting for $name secret to be populated..."
+    sleep 10
+  done
+
+  echo "ERROR: Timed out waiting for $name secret to be populated"
+  exit 1
+}
+
+export MPC_ACCOUNT_SK="$(wait_for_real_secret MPC_ACCOUNT_SK ${accountSkSecretArn})"
+export MPC_P2P_PRIVATE_KEY="$(wait_for_real_secret MPC_P2P_PRIVATE_KEY ${p2pKeySecretArn})"
+export MPC_SECRET_STORE_KEY="$(wait_for_real_secret MPC_SECRET_STORE_KEY ${secretStoreKeySecretArn})"
+
+# Normalize secrets (strip newlines)
+MPC_ACCOUNT_SK="$(echo "$MPC_ACCOUNT_SK" | tr -d '\n')"
+MPC_P2P_PRIVATE_KEY="$(echo "$MPC_P2P_PRIVATE_KEY" | tr -d '\n')"
+MPC_SECRET_STORE_KEY="$(echo "$MPC_SECRET_STORE_KEY" | tr -d '\n')"
+export MPC_ACCOUNT_SK MPC_P2P_PRIVATE_KEY MPC_SECRET_STORE_KEY
+
+# Ensure MPC config.yaml exists (mpc-node reads it directly; /app/start.sh would otherwise generate it).
+if [ ! -f ${dataDir}/config.yaml ]; then
+  cat > ${dataDir}/config.yaml <<EOF
+# Configuration File
+my_near_account_id: ${nodeConfig.accountId}
+near_responder_account_id: ${nodeConfig.responderId || nodeConfig.accountId}
+number_of_responder_keys: 50
+web_ui:
+  host: 0.0.0.0
+  port: 8080
+migration_web_ui:
+  host: 0.0.0.0
+  port: 8079
+triple:
+  concurrency: 2
+  desired_triples_to_buffer: 1000000
+  timeout_sec: 60
+  parallel_triple_generation_stagger_time_sec: 1
+presignature:
+  concurrency: 16
+  desired_presignatures_to_buffer: 8192
+  timeout_sec: 60
+signature:
+  timeout_sec: 60
+ckd:
+  timeout_sec: 60
+indexer:
+  validate_genesis: false
+  sync_mode: Latest
+  concurrency: 1
+  mpc_contract_id: ${mpcContractId}
+  finality: optimistic
+cores: 12
+EOF
+  chmod 644 ${dataDir}/config.yaml || true
+fi
+
+# Ensure secrets.json exists (mpc-node will use existing secrets.json if present; otherwise it generates random keys).
+if [ ! -f ${dataDir}/secrets.json ]; then
+  cat > ${dataDir}/secrets.json <<EOF
+{
+  "p2p_private_key": "$MPC_P2P_PRIVATE_KEY",
+  "near_signer_key": "$MPC_ACCOUNT_SK",
+  "near_responder_keys": ["$MPC_ACCOUNT_SK"]
+}
+EOF
+  chmod 600 ${dataDir}/secrets.json || true
+fi
+
+# Connected Localnet Mode: Download genesis from S3 if provided
+GENESIS_S3_URL="${genesisS3Url ?? ""}"
+MPC_ENV_VAL="${mpcEnv}"
+
+if [ -n "$GENESIS_S3_URL" ]; then
+  echo "📡 Connected Localnet mode - downloading NEAR Base genesis from S3"
+  echo "   S3 URL: $GENESIS_S3_URL"
+  
+  # Download genesis from S3
+  aws s3 cp "$GENESIS_S3_URL" ${dataDir}/genesis.json --region ${region}
+  
+  # Verify download
+  if [ ! -f ${dataDir}/genesis.json ]; then
+    echo "ERROR: Failed to download genesis from S3"
+    exit 1
+  fi
+  
+  GENESIS_SIZE=$(wc -c < ${dataDir}/genesis.json)
+  echo "✅ Genesis downloaded: $GENESIS_SIZE bytes"
+  
+  # IMPORTANT: In localnet we set MPC_ENV to "mpc-localnet" so /app/start.sh disables state sync,
+  # but we PRE-INIT /data/config.json using our provided genesis (so it won't use embedded genesis).
+  MPC_ENV_VAL="${mpcEnv}"
+elif [ -n "${nearBootNodes}" ]; then
+  echo "⚠️  Boot nodes provided but no S3 genesis URL"
+  echo "   Will use embedded genesis (may cause chain_id mismatch)"
+  MPC_ENV_VAL="${mpcEnv}"
+fi
 
 # Pull the Docker image (from Docker Hub or configured registry)
 docker pull ${imageUri}
+
+# Connected Localnet: ensure /data/config.json is a valid nearcore config file.
+# The MPC image's /app/start.sh expects a full config.json with fields like store and rpc.addr.
+if [ -n "$GENESIS_S3_URL" ]; then
+  NEED_NEAR_INIT="false"
+  if [ ! -f ${dataDir}/config.json ]; then
+    NEED_NEAR_INIT="true"
+  else
+    if ! grep -q '\"store\"' ${dataDir}/config.json; then NEED_NEAR_INIT="true"; fi
+    if ! grep -q '\"rpc\"' ${dataDir}/config.json; then NEED_NEAR_INIT="true"; fi
+    if ! grep -q '\"addr\"' ${dataDir}/config.json; then NEED_NEAR_INIT="true"; fi
+  fi
+
+  if [ "$NEED_NEAR_INIT" = "true" ]; then
+    echo "🧱 Initializing /data/config.json via /app/mpc-node init (custom genesis)"
+
+    # Clean any previously-written minimal/invalid config and old DB state
+    rm -f ${dataDir}/config.json ${dataDir}/validator_key.json || true
+    rm -rf ${dataDir}/data || true
+
+    # Preserve original genesis (mpc-node init may rewrite it)
+    cp ${dataDir}/genesis.json ${dataDir}/genesis.original.json
+    CHAIN_ID=$(cat ${dataDir}/genesis.original.json | jq -r '.chain_id')
+    echo "   Genesis chain_id: $CHAIN_ID"
+
+    # Use the binary directly for init to avoid start.sh logic
+    docker run --rm --net=host -v ${dataDir}:/data --entrypoint /app/mpc-node ${imageUri} \\
+      init --dir /data --chain-id "$CHAIN_ID" --genesis /data/genesis.original.json --boot-nodes "${nearBootNodes}"
+
+    # Restore original genesis and remove validator key (MPC nodes are NOT validators)
+    cp ${dataDir}/genesis.original.json ${dataDir}/genesis.json
+    rm -f ${dataDir}/genesis.original.json || true
+    rm -f ${dataDir}/validator_key.json || true
+
+    echo "✅ Near config.json initialized"
+    
+    # Force state_sync_enabled=true for Connected Localnet
+    # This overwrites default init behavior which might default to false or try to download
+    # Also set tracked_shards to AllShards for testing stability
+    cp ${dataDir}/config.json ${dataDir}/config.json.bak
+    jq '.state_sync_enabled=true | .tracked_shards_config="AllShards" | .store.load_mem_tries_for_tracked_shards=false' ${dataDir}/config.json.bak > ${dataDir}/config.json
+    echo "✅ Forced state_sync_enabled=true in config.json"
+  else
+    echo "✅ Existing /data/config.json looks valid; skipping init"
+  fi
+fi
 
 # Stop and remove any existing container
 docker stop mpc-node || true
 docker rm mpc-node || true
 
 # Run the MPC node container
-docker run -d --name mpc-node --restart=always --net=host \\
-  -v ${dataDir}:/data \\
-  -e MPC_HOME_DIR="/data" \\
-  -e MPC_ACCOUNT_ID="${nodeConfig.accountId}" \\
-  -e MPC_LOCAL_ADDRESS="${nodeConfig.localAddress}" \\
-  -e MPC_RESPONDER_ID="${nodeConfig.responderId || nodeConfig.accountId}" \\
-  -e MPC_CONTRACT_ID="${mpcContractId}" \\
-  -e MPC_ENV="${nearNetworkId}" \\
-  -e NEAR_RPC_URL="${nearRpcUrl}" \\
-  -e NEAR_BOOT_NODES="${nearBootNodes}" \\
-  -e MPC_ACCOUNT_SK="$MPC_ACCOUNT_SK" \\
-  -e MPC_P2P_PRIVATE_KEY="$MPC_P2P_PRIVATE_KEY" \\
-  -e MPC_SECRET_STORE_KEY="$MPC_SECRET_STORE_KEY" \\
-  -e RUST_BACKTRACE="full" \\
-  -e RUST_LOG="mpc=debug,info" \\
-  ${imageUri}
+if [ -n "$GENESIS_S3_URL" ]; then
+  # Connected Localnet: bypass /app/start.sh (it disables state sync for mpc-localnet, and for other envs it expects
+  # config.state_sync to exist and crashes). We manage /data/* ourselves and run the binary directly.
+  docker run -d --name mpc-node --restart=always --net=host \\
+    -v ${dataDir}:/data \\
+    -e MPC_HOME_DIR="/data" \\
+    -e MPC_SECRET_STORE_KEY="$MPC_SECRET_STORE_KEY" \\
+    -e RUST_BACKTRACE="full" \\
+    -e RUST_LOG="mpc=debug,info" \\
+    --entrypoint /app/mpc-node \\
+    ${imageUri} start local
+else
+  # Legacy behavior: use image entrypoint (/app/start.sh)
+  docker run -d --name mpc-node --restart=always --net=host \\
+    -v ${dataDir}:/data \\
+    -e MPC_HOME_DIR="/data" \\
+    -e MPC_ACCOUNT_ID="${nodeConfig.accountId}" \\
+    -e MPC_LOCAL_ADDRESS="${nodeConfig.localAddress}" \\
+    -e MPC_RESPONDER_ID="${nodeConfig.responderId || nodeConfig.accountId}" \\
+    -e MPC_CONTRACT_ID="${mpcContractId}" \\
+    -e MPC_ENV="$MPC_ENV_VAL" \\
+    -e NEAR_RPC_URL="${nearRpcUrl}" \\
+    -e NEAR_BOOT_NODES="${nearBootNodes}" \\
+    -e MPC_ACCOUNT_SK="$MPC_ACCOUNT_SK" \\
+    -e MPC_P2P_PRIVATE_KEY="$MPC_P2P_PRIVATE_KEY" \\
+    -e MPC_SECRET_STORE_KEY="$MPC_SECRET_STORE_KEY" \\
+    -e RUST_BACKTRACE="full" \\
+    -e RUST_LOG="mpc=debug,info" \\
+    ${imageUri}
+fi
 
 # Register with Cloud Map (optional - for service discovery)
 INSTANCE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
@@ -429,4 +656,3 @@ echo "MPC node ${nodeIndex} startup complete"
 `;
   }
 }
-

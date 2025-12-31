@@ -12,12 +12,20 @@ const app = new cdk.App();
 
 // Try context first, then CloudFormation imports (if available), then defaults
 // Note: CloudFormation imports are evaluated at deploy time, not synth time
-const nearRpcUrl = app.node.tryGetContext("nearRpcUrl") || process.env.NEAR_RPC_URL || "http://localhost:3030";
-// CRITICAL: MPC nodes expect "mpc-localnet" as MPC_ENV for localnet (NOT "localnet")
-// See deployment/start.sh line 11 - it checks: if [ "$MPC_ENV" = "mpc-localnet" ]
-const nearNetworkId = app.node.tryGetContext("nearNetworkId") || process.env.NEAR_NETWORK_ID || "mpc-localnet";
-const nearBootNodes = app.node.tryGetContext("nearBootNodes") || process.env.NEAR_BOOT_NODES || "";
-const mpcContractId = app.node.tryGetContext("mpcContractId") || process.env.MPC_CONTRACT_ID || "v1.signer.node0";
+// Prefer explicit context/env vars. If not provided, the stack will fall back to config.local.json (or sane defaults).
+const nearRpcUrl: string | undefined = app.node.tryGetContext("nearRpcUrl") || process.env.NEAR_RPC_URL;
+// NEAR network id for the chain the MPC indexer follows (NEAR Base for localnet)
+const nearNetworkId: string | undefined = app.node.tryGetContext("nearNetworkId") || process.env.NEAR_NETWORK_ID;
+// MPC container environment selector used by /app/start.sh inside the MPC image.
+// Localnet MUST use "mpc-localnet"; testnet/mainnet use their NEAR network id.
+const resolvedNearNetworkId = nearNetworkId || "localnet";
+const mpcEnv: string | undefined =
+  app.node.tryGetContext("mpcEnv") ||
+  process.env.MPC_ENV ||
+  (resolvedNearNetworkId === "localnet" ? "mpc-localnet" : resolvedNearNetworkId);
+const nearBootNodes: string | undefined = app.node.tryGetContext("nearBootNodes") || process.env.NEAR_BOOT_NODES;
+const nearGenesis = app.node.tryGetContext("nearGenesis") || process.env.NEAR_GENESIS;
+const mpcContractId = app.node.tryGetContext("mpcContractId") || process.env.MPC_CONTRACT_ID || "v1.signer.localnet";
 const vpcId = app.node.tryGetContext("vpcId") || process.env.VPC_ID;
 const nodeCount = parseInt(app.node.tryGetContext("nodeCount") || process.env.MPC_NODE_COUNT || "3", 10);
 const dockerImageUri = app.node.tryGetContext("dockerImageUri") || process.env.MPC_DOCKER_IMAGE_URI;
@@ -31,12 +39,14 @@ const awsNodeRunnerStackName = app.node.tryGetContext("awsNodeRunnerStackName") 
 
 new MpcStandaloneStack(app, "MpcStandaloneStack", {
   env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
+    account: process.env.CDK_DEFAULT_ACCOUNT || "311843862895",
     region: process.env.CDK_DEFAULT_REGION || "us-east-1",
   },
   nearRpcUrl,
   nearNetworkId,
+  mpcEnv,
   nearBootNodes,
+  nearGenesis,
   mpcContractId,
   vpcId,
   nodeCount,

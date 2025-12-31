@@ -3,10 +3,10 @@
   "aws": {
     "profile": "shai-sandbox-profile",
     "region": "us-east-1",
-    "account": "311843862895"
+    "account": "311843862895",
+    "vpcId": "vpc-0ad7ab6659e0293ae"
   },
   "near": {
-    "vpcId": "vpc-0ad7ab6659e0293ae",
     "rpcIp": "10.0.5.132",
     "rpcPort": 3030,
     "p2pPort": 24567,
@@ -14,8 +14,8 @@
   },
   "mpc": {
     "nodeCount": 3,
-    "contractId": "v1.signer.node0",
-    "dockerImage": "nearone/mpc-node-gcp:testnet-release",
+    "contractId": "v1.signer.localnet",
+    "dockerImage": "nearone/mpc-node:3.1.0",
     "cpu": 512,
     "memory": 1024,
     "autoGenerateKeys": true

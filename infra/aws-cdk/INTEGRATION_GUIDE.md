@@ -82,7 +82,7 @@ npx cdk deploy \
   --context vpcId=<your-vpc-id> \
   --context nearRpcUrl=http://<your-near-node-ip>:3030 \
   --context nearBootNodes=ed25519:PUBKEY@<your-near-node-ip>:24567 \
-  --context mpcContractId=v1.signer.node0 \
+  --context mpcContractId=v1.signer.localnet \
   --profile "${AWS_PROFILE:-<your-aws-profile>}" \
   --require-approval never
 ```
@@ -93,7 +93,7 @@ npx cdk deploy \
 export VPC_ID=<your-vpc-id>
 export NEAR_RPC_URL=http://<your-near-node-ip>:3030
 export NEAR_BOOT_NODES=ed25519:PUBKEY@<your-near-node-ip>:24567
-export MPC_CONTRACT_ID=v1.signer.node0
+export MPC_CONTRACT_ID=v1.signer.localnet
 
 npx cdk deploy --profile "${AWS_PROFILE:-<your-aws-profile>}"
 ```
@@ -143,7 +143,7 @@ export class NearNodeStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, 'MpcContractIdOutput', {
-      value: 'v1.signer.node0', // adjust for your network
+      value: 'v1.signer.localnet', // adjust for your network
       exportName: `${this.stackName}-MpcContractId`,
       description: 'MPC contract account ID'
     });
@@ -226,7 +226,7 @@ export class NearMpcIntegratedStack extends cdk.Stack {
       nearRpcUrl: 'http://<your-near-node-ip>:3030', // from NEAR node
       nearNetworkId: 'mpc-localnet',
       nearBootNodes: 'ed25519:PUBKEY@<your-near-node-ip>:24567',
-      mpcContractId: 'v1.signer.node0',
+      mpcContractId: 'v1.signer.localnet',
       nodeConfigs: [
         { accountId: 'mpc-node-0.node0', localAddress: 'node-0.mpc.local' },
         { accountId: 'mpc-node-1.node0', localAddress: 'node-1.mpc.local' },
@@ -270,7 +270,7 @@ For Pattern 2 (Integrated), the AWSNodeRunner stack **must** export these values
 | `{StackName}-NearRpcUrl` | NEAR RPC private endpoint | `http://<your-near-node-ip>:3030` |
 | `{StackName}-NearBootNodes` | Boot nodes for MPC indexer | `ed25519:ABC...@<your-near-node-ip>:24567` |
 | `{StackName}-NearNetworkId` | NEAR network/chain ID | `mpc-localnet` |
-| `{StackName}-MpcContractId` | MPC contract account | `v1.signer.node0` |
+| `{StackName}-MpcContractId` | MPC contract account | `v1.signer.localnet` |
 
 ### Example CloudFormation Output
 
