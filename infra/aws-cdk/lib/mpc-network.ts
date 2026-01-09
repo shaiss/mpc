@@ -83,7 +83,7 @@ export class MpcNetwork extends constructs.Construct {
     const defaultImageUri =
       nearNetworkId === "testnet" || nearNetworkId === "mainnet"
         ? "docker.io/nearone/mpc-node-gcp:testnet-release"
-        : "docker.io/nearone/mpc-node:3.1.0";
+        : "docker.io/nearone/mpc-node:3.2.0";
     const imageUri = dockerImageUri || defaultImageUri;
 
     // 0. Use S3 URL for genesis if provided by parent stack
@@ -230,12 +230,14 @@ export class MpcNetwork extends constructs.Construct {
       const nodeSecretsMap = this.nodeSecrets.get(i)!;
 
       // Create EBS volume for this node
+      // Use DESTROY policy for localnet to ensure clean teardown and avoid stale data on redeploy.
+      // For production/testnet deployments, consider RETAIN or SNAPSHOT policies.
       const ebsVolume = new ec2.Volume(this, `Node${i}Volume`, {
         availabilityZone: vpc.availabilityZones[0], // Use first AZ
         size: cdk.Size.gibibytes(ebsVolumeSize),
         volumeType: ec2.EbsDeviceVolumeType.GP3,
         encrypted: true,
-        removalPolicy: cdk.RemovalPolicy.RETAIN, // Retain data across stack deletions
+        removalPolicy: cdk.RemovalPolicy.DESTROY, // Clean teardown for localnet dev workflow
       });
 
       // Generate UserData script
@@ -575,8 +577,141 @@ fi
 # Pull the Docker image (from Docker Hub or configured registry)
 docker pull ${imageUri}
 
+# Embed reset script for reuse by SSM commands
+mkdir -p /opt/mpc
+cat > /opt/mpc/reset-mpc-node.sh << 'MPC_RESET_EOF'
+#!/bin/bash
+# MPC Node Reset Script (embedded in UserData)
+# Resets NEAR chain state and MPC keyshares while preserving secrets
+# Called during instance boot or via SSM for running instances
+
+set -exo pipefail
+
+echo "=== MPC Node Reset Started ==="
+date
+
+# Arguments with defaults (passed from UserData or SSM)
+GENESIS_S3_URL="\${1:-\${GENESIS_S3_URL}}"
+IMAGE_URI="\${2:-\${IMAGE_URI}}"
+CHAIN_ID="\${3:-\${CHAIN_ID}}"
+NEAR_BOOT_NODES="\${4:-\${NEAR_BOOT_NODES}}"
+
+# Default to Connected Localnet values if not provided
+if [ -z "$CHAIN_ID" ]; then
+  CHAIN_ID="localnet"
+fi
+
+# Get AWS region from instance metadata
+AWS_REGION="$(curl -s http://169.254.169.254/latest/meta-data/placement/region)"
+
+echo "Configuration:"
+echo "  GENESIS_S3_URL: $GENESIS_S3_URL"
+echo "  IMAGE_URI: $IMAGE_URI"
+echo "  CHAIN_ID: $CHAIN_ID"
+echo "  NEAR_BOOT_NODES: $NEAR_BOOT_NODES"
+echo "  AWS_REGION: $AWS_REGION"
+
+# Stop the Docker container
+echo "=== Stopping MPC container ==="
+docker stop mpc-node || true
+docker rm mpc-node || true
+
+# Create backup directory for essential files
+mkdir -p /tmp/mpc-reset-backup
+
+# Backup essential config files (will be restored after wipe)
+if [ -f /data/config.yaml ]; then
+  cp /data/config.yaml /tmp/mpc-reset-backup/
+  echo "Backed up config.yaml"
+fi
+
+if [ -f /data/secrets.json ]; then
+  cp /data/secrets.json /tmp/mpc-reset-backup/
+  echo "Backed up secrets.json"
+fi
+
+# Wipe NEAR chain state and MPC keyshares (preserve logs for debugging)
+echo "=== Wiping NEAR chain state and MPC keyshares ==="
+rm -rf /data/data /data/config.json /data/node_key.json /data/validator_key.json
+rm -rf /data/permanent_keys /data/temporary_keys
+
+# Download genesis from S3 if URL provided (Connected Localnet mode)
+if [ -n "$GENESIS_S3_URL" ]; then
+  echo "=== Downloading genesis from S3 ==="
+  aws s3 cp "$GENESIS_S3_URL" /data/genesis.json --region "$AWS_REGION"
+
+  # Verify download
+  if [ ! -f /data/genesis.json ]; then
+    echo "ERROR: Failed to download genesis from S3: $GENESIS_S3_URL"
+    exit 1
+  fi
+
+  GENESIS_SIZE="$(wc -c < /data/genesis.json)"
+  echo "✅ Genesis downloaded: $GENESIS_SIZE bytes"
+fi
+
+# Restore essential config files
+if [ -f /tmp/mpc-reset-backup/config.yaml ]; then
+  cp /tmp/mpc-reset-backup/config.yaml /data/
+  echo "Restored config.yaml"
+fi
+
+if [ -f /tmp/mpc-reset-backup/secrets.json ]; then
+  cp /tmp/mpc-reset-backup/secrets.json /data/
+  echo "Restored secrets.json"
+fi
+
+# Reinitialize nearcore config if we have genesis and boot nodes
+if [ -f /data/genesis.json ] && [ -n "$NEAR_BOOT_NODES" ]; then
+  echo "=== Reinitializing nearcore config ==="
+
+  # Clean any previously-written minimal/invalid config
+  rm -f /data/config.json /data/validator_key.json || true
+
+  # Use the binary directly for init to avoid start.sh logic
+  docker run --rm --net=host -v /data:/data --entrypoint /app/mpc-node \${IMAGE_URI} \\
+    init --dir /data --chain-id "\${CHAIN_ID}" --genesis /data/genesis.original.json --boot-nodes "\${NEAR_BOOT_NODES}"
+
+  # Restore original genesis and remove validator key (MPC nodes are NOT validators)
+  cp /data/genesis.json /data/genesis.original.json || true
+  rm -f /data/validator_key.json || true
+
+  echo "✅ Near config.json reinitialized"
+
+  # Force state_sync_enabled=true for Connected Localnet
+  # This overwrites default init behavior which might default to false or try to download
+  # Also set tracked_shards to AllShards for testing stability
+  if [ -f /data/config.json ]; then
+    cp /data/config.json /data/config.json.bak
+    jq '.state_sync_enabled=true | .tracked_shards_config="AllShards" | .store.load_mem_tries_for_tracked_shards=false' /data/config.json.bak > /data/config.json
+    echo "✅ Forced state_sync_enabled=true in config.json"
+  fi
+else
+  echo "=== Skipping nearcore init (no genesis or boot nodes) ==="
+fi
+
+# Clean up backup
+rm -rf /tmp/mpc-reset-backup
+
+# Restart the Docker container
+echo "=== Restarting MPC container ==="
+docker start mpc-node
+
+echo "=== MPC Node Reset Complete ==="
+date
+
+# Show container status
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep mpc-node || echo "Container not running yet"
+
+echo "=== Next steps ==="
+echo "1. Wait for MPC node to sync (check logs with: docker logs mpc-node --tail 20)"
+echo "2. Verify keygen starts (contract should be in 'Running' state)"
+echo "3. Run parity tests to confirm signing works"
+MPC_RESET_EOF
+chmod +x /opt/mpc/reset-mpc-node.sh
+
 # Connected Localnet: ensure /data/config.json is a valid nearcore config file.
-# The MPC image's /app/start.sh expects a full config.json with fields like store and rpc.addr.
+# Use the embedded reset script for initialization
 if [ -n "$GENESIS_S3_URL" ]; then
   NEED_NEAR_INIT="false"
   if [ ! -f ${dataDir}/config.json ]; then
@@ -596,34 +731,8 @@ if [ -n "$GENESIS_S3_URL" ]; then
   fi
 
   if [ "$NEED_NEAR_INIT" = "true" ]; then
-    echo "🧱 Initializing /data/config.json via /app/mpc-node init (custom genesis)"
-
-    # Clean any previously-written minimal/invalid config and old DB state
-    rm -f ${dataDir}/config.json ${dataDir}/validator_key.json || true
-    rm -rf ${dataDir}/data || true
-
-    # Preserve original genesis (mpc-node init may rewrite it)
-    cp ${dataDir}/genesis.json ${dataDir}/genesis.original.json
-    CHAIN_ID=$(cat ${dataDir}/genesis.original.json | jq -r '.chain_id')
-    echo "   Genesis chain_id: $CHAIN_ID"
-
-    # Use the binary directly for init to avoid start.sh logic
-    docker run --rm --net=host -v ${dataDir}:/data --entrypoint /app/mpc-node ${imageUri} \\
-      init --dir /data --chain-id "$CHAIN_ID" --genesis /data/genesis.original.json --boot-nodes "${nearBootNodes}"
-
-    # Restore original genesis and remove validator key (MPC nodes are NOT validators)
-    cp ${dataDir}/genesis.original.json ${dataDir}/genesis.json
-    rm -f ${dataDir}/genesis.original.json || true
-    rm -f ${dataDir}/validator_key.json || true
-
-    echo "✅ Near config.json initialized"
-    
-    # Force state_sync_enabled=true for Connected Localnet
-    # This overwrites default init behavior which might default to false or try to download
-    # Also set tracked_shards to AllShards for testing stability
-    cp ${dataDir}/config.json ${dataDir}/config.json.bak
-    jq '.state_sync_enabled=true | .tracked_shards_config="AllShards" | .store.load_mem_tries_for_tracked_shards=false' ${dataDir}/config.json.bak > ${dataDir}/config.json
-    echo "✅ Forced state_sync_enabled=true in config.json"
+    echo "🧱 Initializing MPC node via reset script"
+    /opt/mpc/reset-mpc-node.sh "$GENESIS_S3_URL" "${imageUri}" "" "${nearBootNodes}"
   else
     echo "✅ Existing /data/config.json looks valid; skipping init"
   fi
@@ -640,6 +749,8 @@ if [ -n "$GENESIS_S3_URL" ]; then
   docker run -d --name mpc-node --restart=always --net=host \\
     -v ${dataDir}:/data \\
     -e MPC_HOME_DIR="/data" \\
+    -e MPC_ACCOUNT_SK="$MPC_ACCOUNT_SK" \\
+    -e MPC_P2P_PRIVATE_KEY="$MPC_P2P_PRIVATE_KEY" \\
     -e MPC_SECRET_STORE_KEY="$MPC_SECRET_STORE_KEY" \\
     -e RUST_BACKTRACE="full" \\
     -e RUST_LOG="mpc=debug,info" \\

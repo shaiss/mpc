@@ -40,7 +40,7 @@ The recommended approach is to keep configuration in `config.local.json` (gitign
 - `near.genesisBase64`
 - `near.networkId` = `localnet`
 - `mpc.contractId` (default: `v1.signer.localnet`)
-- `mpc.dockerImage` (default: `nearone/mpc-node:3.1.0`)
+- `mpc.dockerImage` (default: `nearone/mpc-node:3.2.0`)
 
 ## Deploy
 
@@ -64,6 +64,44 @@ cd infra/aws-cdk
 ./scripts/generate-test-keys.sh 3
 ./scripts/update-secrets.sh ./mpc-node-keys.json shai-sandbox-profile
 ```
+
+### Secrets Architecture
+
+Each MPC node requires three secrets stored in AWS Secrets Manager:
+- `mpc-node-{i}-mpc_account_sk` - NEAR account secret key (ed25519:...)
+- `mpc-node-{i}-mpc_p2p_private_key` - P2P network key (ed25519:...)
+- `mpc-node-{i}-mpc_secret_store_key` - 32-character hex string for local storage encryption
+
+**CRITICAL: Secrets are fetched during UserData execution only.**
+
+When restarting MPC containers manually (e.g., via SSM for troubleshooting), you MUST:
+1. Fetch secrets from Secrets Manager before starting the container
+2. Pass them as `-e` environment variables to `docker run`
+
+Example for manual restart:
+```bash
+NODE_INDEX=0
+AWS_REGION=us-east-1
+
+MPC_ACCOUNT_SK=$(aws secretsmanager get-secret-value --secret-id "mpc-node-${NODE_INDEX}-mpc_account_sk" --region $AWS_REGION --query SecretString --output text | tr -d '\n')
+MPC_P2P_PRIVATE_KEY=$(aws secretsmanager get-secret-value --secret-id "mpc-node-${NODE_INDEX}-mpc_p2p_private_key" --region $AWS_REGION --query SecretString --output text | tr -d '\n')
+MPC_SECRET_STORE_KEY=$(aws secretsmanager get-secret-value --secret-id "mpc-node-${NODE_INDEX}-mpc_secret_store_key" --region $AWS_REGION --query SecretString --output text | tr -d '\n')
+
+docker run -d --name mpc-node --restart=always --net=host \
+  -v /data:/data \
+  -e MPC_HOME_DIR="/data" \
+  -e MPC_ACCOUNT_SK="$MPC_ACCOUNT_SK" \
+  -e MPC_P2P_PRIVATE_KEY="$MPC_P2P_PRIVATE_KEY" \
+  -e MPC_SECRET_STORE_KEY="$MPC_SECRET_STORE_KEY" \
+  -e RUST_BACKTRACE=full \
+  -e RUST_LOG=mpc=debug,info \
+  --entrypoint /app/mpc-node \
+  nearone/mpc-node:3.2.0 start local
+```
+
+**Failure mode:** If secrets are empty or malformed, the container crashes with:
+- `invalid local storage aes key hex` (missing MPC_SECRET_STORE_KEY)
+- `ERROR: MPC_ACCOUNT_SK must start with 'ed25519:'` (malformed account key)
 
 ## Destroy
 

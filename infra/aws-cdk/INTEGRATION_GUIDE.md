@@ -2,6 +2,54 @@
 
 This guide explains how to deploy the MPC stack in different architectural patterns following AWS best practices for modular, loosely-coupled infrastructure.
 
+## CRITICAL: Dynamic Value Discovery
+
+**NEVER hardcode** instance IDs, IPs, public keys, or ARNs. Always discover values dynamically.
+
+### How to Get Required Values
+
+Before deploying MPC nodes, you MUST fetch these values from the running NEAR Base infrastructure:
+
+| Value | How to Discover |
+|-------|-----------------|
+| VPC ID | `aws cloudformation describe-stacks --stack-name near-localnet-infrastructure --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text` |
+| NEAR RPC URL | `NEAR_IP=$(aws cloudformation describe-stacks --stack-name near-localnet-infrastructure --query "Stacks[0].Outputs[?OutputKey=='near-instance-private-ip'].OutputValue" --output text); echo "http://${NEAR_IP}:3030"` |
+| NEAR Boot Nodes | SSM into NEAR Base: `cat /home/ubuntu/.near/localnet/node0/node_key.json \| jq -r .public_key` then format as `ed25519:KEY@NEAR_IP:24567` |
+
+**Example workflow:**
+```bash
+# 1. Get NEAR Base IP
+NEAR_IP=$(aws cloudformation describe-stacks --stack-name near-localnet-infrastructure \
+  --profile shai-sandbox-profile --region us-east-1 \
+  --query "Stacks[0].Outputs[?OutputKey=='near-instance-private-ip'].OutputValue" --output text)
+
+# 2. Get VPC ID
+VPC_ID=$(aws cloudformation describe-stacks --stack-name near-localnet-infrastructure \
+  --profile shai-sandbox-profile --region us-east-1 \
+  --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text)
+
+# 3. Get NEAR Base instance ID for SSM
+NEAR_INSTANCE=$(aws cloudformation describe-stacks --stack-name near-localnet-infrastructure \
+  --profile shai-sandbox-profile --region us-east-1 \
+  --query "Stacks[0].Outputs[?OutputKey=='near-instance-id'].OutputValue" --output text)
+
+# 4. SSM to get node_key (run this command on the instance)
+# cat /home/ubuntu/.near/localnet/node0/node_key.json | jq -r .public_key
+# Returns: ed25519:XXXXXX
+
+# 5. Construct boot nodes string
+BOOT_NODES="ed25519:XXXXXX@${NEAR_IP}:24567"
+
+# 6. Deploy MPC stack with discovered values
+npx cdk deploy \
+  --context vpcId=${VPC_ID} \
+  --context nearRpcUrl=http://${NEAR_IP}:3030 \
+  --context nearBootNodes=${BOOT_NODES} \
+  --context mpcContractId=v1.signer.localnet
+```
+
+---
+
 ## Architecture Overview
 
 The MPC CDK stack supports **three deployment patterns**:
