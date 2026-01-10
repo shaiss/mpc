@@ -1,7 +1,7 @@
 {
   "protocol_version": 82,
-  "genesis_time": "2026-01-03T01:20:50.916358890Z",
-  "chain_id": "test-chain-YyAAa",
+  "genesis_time": "2026-01-09T20:13:07.241920575Z",
+  "chain_id": "test-chain-klXRp",
   "genesis_height": 0,
   "num_block_producer_seats": 4,
   "num_block_producer_seats_per_shard": [
@@ -224,7 +224,7 @@
     {
       "AccessKey": {
         "account_id": "localnet",
-        "public_key": "ed25519:BuDyn9FyULvjrw4aCZuMdAvR1QodGhyU8zsfK2nrmKgU",
+        "public_key": "ed25519:774JFTKuuwzG9LyWDri7XJfHT675EsmRg4HaHhx5UM5F",
         "access_key": {
           "nonce": 0,
           "permission": "FullAccess"
